@@ -582,17 +582,15 @@ main {
   padding: 0;
 }
 
-/* Shiki: lint/dark 두 테마를 CSS 변수로 받아 테마에 따라 바꾼다. */
-.prose .astro-code,
-.prose .astro-code span {
-  color: var(--shiki-light);
-  background-color: var(--shiki-light-bg);
+/* Shiki 는 라이트 테마 색을 인라인 style 로 굽고, 다크 테마 색은 --shiki-dark
+   변수로 넘긴다. 그래서 다크 모드에서만 변수로 덮어쓴다(인라인 값을 이기려면
+   !important 가 필요하다). */
+:root[data-theme='dark'] .prose .astro-code {
+  background-color: var(--shiki-dark-bg) !important;
 }
 
-:root[data-theme='dark'] .prose .astro-code,
 :root[data-theme='dark'] .prose .astro-code span {
-  color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg);
+  color: var(--shiki-dark) !important;
   font-style: var(--shiki-dark-font-style);
   font-weight: var(--shiki-dark-font-weight);
   text-decoration: var(--shiki-dark-text-decoration);
