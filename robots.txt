@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ggebi.github.io/sitemap-index.xml
