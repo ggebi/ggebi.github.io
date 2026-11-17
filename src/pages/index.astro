@@ -25,7 +25,7 @@ const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || 
         {posts.map((post) => (
           <li>
             <a href={postUrl(post.id)}>
-              <time datetime={post.data.pubDate.toISOString()}>{shortDate(post.data.pubDate)}</time>
+              <time datetime={post.data.pubDate.toISOString()}>{shortDate(post.data.pubDate, post.data.lang)}</time>
               <span class="post-title">{post.data.title}</span>
               <span class="post-desc">{post.data.description}</span>
             </a>

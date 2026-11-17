@@ -1,7 +1,7 @@
 ---
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { longDate, readingTime, shortDate, tagUrl } from '../lib/format';
+import { longDate, readingTime, readingTimeLabel, shortDate, tagUrl } from '../lib/format';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft);
@@ -31,13 +31,13 @@ const minutes = readingTime(post.body);
     <header class="post-header">
       <h1>{post.data.title}</h1>
       <div class="post-meta">
-        <time datetime={post.data.pubDate.toISOString()}>{longDate(post.data.pubDate)}</time>
+        <time datetime={post.data.pubDate.toISOString()}>{longDate(post.data.pubDate, post.data.lang)}</time>
         {
           post.data.updatedDate && (
-            <span class="dot">수정 {shortDate(post.data.updatedDate)}</span>
+            <span class="dot">{post.data.lang === 'en' ? 'Updated' : '수정'} {shortDate(post.data.updatedDate, post.data.lang)}</span>
           )
         }
-        <span class="dot">약 {minutes}분</span>
+        <span class="dot">{readingTimeLabel(minutes, post.data.lang)}</span>
         {
           post.data.draft && (
             <span class="draft-badge" title="아직 발행하지 않은 초안">
@@ -64,8 +64,8 @@ const minutes = readingTime(post.body);
     </div>
 
     <footer class="post-footer">
-      <a href="/">← 글 목록</a>
-      {post.data.tags.length > 0 && <a href={tagUrl(post.data.tags[0])}>#{post.data.tags[0]} 더 보기</a>}
+      <a href="/">{post.data.lang === 'en' ? '← All posts' : '← 글 목록'}</a>
+      {post.data.tags.length > 0 && <a href={tagUrl(post.data.tags[0])}>#{post.data.tags[0]} {post.data.lang === 'en' ? 'more' : '더 보기'}</a>}
     </footer>
   </article>
 </BaseLayout>
