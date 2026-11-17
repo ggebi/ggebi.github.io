@@ -1,0 +1,49 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { postUrl, shortDate, tagSlug } from '../../lib/format';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft);
+  const byTag = new Map<string, typeof posts>();
+
+  for (const post of posts) {
+    for (const tag of post.data.tags) {
+      byTag.set(tag, [...(byTag.get(tag) ?? []), post]);
+    }
+  }
+
+  return [...byTag.entries()].map(([tag, tagged]) => ({
+    params: { tag: tagSlug(tag) },
+    props: { tag, posts: tagged },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+const sorted = [...posts].sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<BaseLayout title={`#${tag}`} description={`#${tag} 태그가 붙은 글 목록입니다.`}>
+  <section class="page-intro">
+    <h1>#{tag}</h1>
+    <p>{sorted.length}개의 글</p>
+  </section>
+
+  <ul class="post-list">
+    {
+      sorted.map((post) => (
+        <li>
+          <a href={postUrl(post.id)}>
+            <time datetime={post.data.pubDate.toISOString()}>{shortDate(post.data.pubDate)}</time>
+            <span class="post-title">{post.data.title}</span>
+            <span class="post-desc">{post.data.description}</span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+
+  <p style="margin-top: 2rem; font-size: 0.875rem;">
+    <a href="/tags/">← 모든 태그</a>
+  </p>
+</BaseLayout>

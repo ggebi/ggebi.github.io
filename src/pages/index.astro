@@ -1,0 +1,43 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_DESCRIPTION } from '../consts';
+import { postUrl, shortDate } from '../lib/format';
+
+// 초안(draft: true)은 빌드 결과에 넣지 않는다. 로컬 `npm run dev` 에서만 보인다.
+const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+
+<BaseLayout description={SITE_DESCRIPTION}>
+  <section class="page-intro">
+    <h1>쓰고 싶은 것들을 적어 둡니다</h1>
+    <p>
+      만들면서 부딪힌 문제, 그 문제를 푼 방식, 그리고 다시 같은 문제를 만났을 때 꺼내 볼 기록.
+      백엔드와 인프라가 주된 자리이고, 가끔은 도구 이야기가 섞입니다.
+    </p>
+  </section>
+
+  {
+    posts.length > 0 ? (
+      <ul class="post-list">
+        {posts.map((post) => (
+          <li>
+            <a href={postUrl(post.id)}>
+              <time datetime={post.data.pubDate.toISOString()}>{shortDate(post.data.pubDate)}</time>
+              <span class="post-title">{post.data.title}</span>
+              <span class="post-desc">{post.data.description}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <div class="empty-state">
+        <strong>아직 올린 글이 없습니다.</strong>
+        첫 글은 <code>src/content/blog/</code> 에 마크다운 파일을 하나 더하면 바로 올라갑니다.
+        형식은 <code>templates/post.md</code> 를 복사해서 쓰면 됩니다.
+      </div>
+    )
+  }
+</BaseLayout>
