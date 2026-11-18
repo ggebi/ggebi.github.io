@@ -134,6 +134,11 @@ const jsonLd =
         }
       })();
     </script>
+
+    <!-- Cloudflare Web Analytics (빌드 HTML에 원형 그대로 남기 위해 raw로 출력) -->
+    <Fragment
+      set:html={`<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "bd9f28533afa40bf9f8054c59e776b78"}'></script>`}
+    />
   </head>
   <body>
     <a class="skip-link" href="#content">본문으로 건너뛰기</a>
