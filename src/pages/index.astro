@@ -2,12 +2,26 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import { SITE_DESCRIPTION } from '../consts';
+import { notes } from '../data/notes';
 import { postUrl, shortDate } from '../lib/format';
 
 // 초안(draft: true)은 빌드 결과에 넣지 않는다. 로컬 `npm run dev` 에서만 보인다.
 const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
+
+// 마크다운 글과 독립 HTML 글(src/data/notes.ts)을 한 목록으로 합친다.
+// sort 는 안정 정렬이라 날짜가 같으면 이 배열 순서(독립 글이 위)가 그대로 남는다.
+const entries = [
+  ...notes.map((note) => ({ ...note })),
+  ...posts.map((post) => ({
+    url: postUrl(post.id),
+    title: post.data.title,
+    description: post.data.description,
+    pubDate: post.data.pubDate,
+    lang: post.data.lang,
+  })),
+].sort((a, b) => b.pubDate.valueOf() - a.pubDate.valueOf());
 ---
 
 <BaseLayout description={SITE_DESCRIPTION}>
@@ -20,14 +34,14 @@ const posts = (await getCollection('blog', ({ data }) => import.meta.env.DEV || 
   </section>
 
   {
-    posts.length > 0 ? (
+    entries.length > 0 ? (
       <ul class="post-list">
-        {posts.map((post) => (
+        {entries.map((entry) => (
           <li>
-            <a href={postUrl(post.id)}>
-              <time datetime={post.data.pubDate.toISOString()}>{shortDate(post.data.pubDate, post.data.lang)}</time>
-              <span class="post-title">{post.data.title}</span>
-              <span class="post-desc">{post.data.description}</span>
+            <a href={entry.url}>
+              <time datetime={entry.pubDate.toISOString()}>{shortDate(entry.pubDate, entry.lang)}</time>
+              <span class="post-title">{entry.title}</span>
+              <span class="post-desc">{entry.description}</span>
             </a>
           </li>
         ))}

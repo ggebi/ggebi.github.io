@@ -22,12 +22,14 @@ GitHub Actions 로 배포한다.
 ├── .github/workflows/deploy.yml   # 빌드 + Pages 배포
 ├── public/
 │   ├── favicon.svg
+│   ├── notes/                      # 독립 HTML 글 (예: notes/tail-latency/index.html → /notes/tail-latency/)
 │   ├── og-default.png             # 공유 카드 기본 이미지 (1200×630)
 │   └── robots.txt
 ├── src/
 │   ├── consts.ts                  # 사이트 이름·설명·OG 기본값
 │   ├── content.config.ts          # 블로그 컬렉션 스키마
 │   ├── content/blog/              # 글 (마크다운)
+│   ├── data/notes.ts              # 독립 HTML 글의 목록 메타데이터 (제목·요약·날짜·URL)
 │   ├── layouts/BaseLayout.astro   # <head> 메타 태그, 헤더, 푸터, 테마 토글
 │   ├── lib/format.ts              # 날짜·URL·읽는 시간 유틸
 │   ├── pages/
@@ -71,6 +73,16 @@ lang: ko
 
 3. 파일 경로가 곧 URL 이 된다. `src/content/blog/hello.md` → `/hello/`
 4. `draft: true` 인 글은 `npm run dev` 에서만 보이고 배포 결과에는 들어가지 않는다.
+
+### 독립 HTML 글
+
+위젯처럼 마크다운으로 옮기기 어려운 페이지는 마크다운을 거치지 않고 `public/` 아래에 직접 둔다.
+메인 목록에는 `src/data/notes.ts` 에 적은 메타데이터로 같은 카드가 올라간다. 날짜 최신순으로
+마크다운 글과 한 목록에 섞이고, 날짜가 같으면 독립 글이 위에 온다.
+
+1. `public/notes/<slug>/index.html` 을 만든다. → URL 은 `/notes/<slug>/`
+2. `src/data/notes.ts` 의 `notes` 배열에 `url`·`title`·`description`·`pubDate`·`lang` 을 더한다.
+3. 태그·RSS 는 마크다운 글만 다룬다. 독립 글은 목록에만 나온다.
 
 ## 공유 카드(OG)
 
