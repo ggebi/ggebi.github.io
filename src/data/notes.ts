@@ -10,7 +10,9 @@
  *   1. `public/notes/<slug>/index.html` 을 넣는다. (URL 은 `/notes/<slug>/`)
  *   2. 아래 배열에 항목 하나를 더한다. 날짜는 frontmatter 와 같은 기준(UTC 날짜)으로 쓴다.
  *
- * 태그·RSS 는 마크다운 글만 다룬다. 독립 글은 여기서 목록에만 올라간다.
+ * 이 배열은 메인 목록(src/pages/index.astro), RSS(src/pages/rss.xml.js),
+ * 사이트맵(astro.config.mjs 의 customPages)이 함께 읽는다. 여기 한 항목만 더하면
+ * 세 곳에 모두 따라 들어간다. (태그 페이지는 마크다운 글만 다룬다.)
  */
 
 export type StandaloneNote = {
@@ -21,6 +23,8 @@ export type StandaloneNote = {
   description: string;
   /** 날짜만 쓴다. `new Date('2026-11-18')` 는 UTC 자정 — frontmatter 의 날짜와 같은 기준. */
   pubDate: Date;
+  /** RSS 의 categories 로 들어간다. 없으면 생략된다. */
+  tags?: string[];
   lang: 'ko' | 'en';
 };
 
@@ -31,6 +35,7 @@ export const notes: StandaloneNote[] = [
     description:
       '평균 응답 시간 20ms인 시스템이 왜 사용자에게는 느리게 느껴지는지, 하위 호출 N개를 병렬로 부를 때 지연 확률이 1−(1−p)^N으로 급증하는 이유, 그리고 실무에서 꼬리를 다루는 방법을 직접 만져보는 위젯과 함께 정리한 글.',
     pubDate: new Date('2026-11-18'),
+    tags: ['backend', 'latency', 'performance'],
     lang: 'ko',
   },
 ];
