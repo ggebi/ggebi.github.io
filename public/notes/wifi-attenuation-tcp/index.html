@@ -1,0 +1,2930 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>[2부] 벽 하나 넘으면 속도가 반 토막 나는 이유 — 전파 감쇠와 TCP 혼잡 제어 · ggebi</title>
+    <meta
+      name="description"
+      content="유선 백홀을 깔았는데도 방문을 닫으면 느려지는 이유를 그림으로 풀어봅니다. 주파수가 높을수록 벽에서 약해지는 전파, 신호가 약해질 때 계단처럼 떨어지는 속도, 그리고 그 손실을 '혼잡'으로 오해하는 TCP 이야기."
+    />
+    <link rel="canonical" href="https://ggebi.github.io/notes/wifi-attenuation-tcp/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="author" content="ggebi" />
+    <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="ggebi" />
+    <meta property="og:title" content="[2부] 벽 하나 넘으면 속도가 반 토막 나는 이유" />
+    <meta
+      property="og:description"
+      content="공기는 손실을 숨겨주지 않습니다. 벽 하나에 신호가 깎이고, 기어가 내려가고, 그 손실을 TCP가 혼잡으로 오해하는 순간 속도가 무너집니다. 그림 네 장과 계산기 두 개로 따라가 봅니다."
+    />
+    <meta property="og:url" content="https://ggebi.github.io/notes/wifi-attenuation-tcp/" />
+    <meta property="og:image" content="https://ggebi.github.io/og-default.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="article:published_time" content="2026-11-23T09:00:00+09:00" />
+
+    <!-- X / Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="[2부] 벽 하나 넘으면 속도가 반 토막 나는 이유" />
+    <meta
+      name="twitter:description"
+      content="벽 하나에 신호가 깎이고, 와이파이가 기어를 낮추고, 그 손실을 TCP가 '도로 정체'로 오해합니다. 반은 벽이, 나머지 반은 잘못 읽은 신호가 가져갑니다."
+    />
+    <meta name="twitter:image" content="https://ggebi.github.io/og-default.png" />
+
+    <script>
+      // 첫 페인트 전에 테마를 정한다. (사이트의 다른 페이지와 같은 키를 쓴다)
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? 'dark' : 'light');
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+
+    <style>
+      /* ================================================================
+         tokens — ggebi.github.io 의 전역 팔레트와 같은 값
+         ================================================================ */
+      :root {
+        color-scheme: light;
+
+        --font-sans:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+          'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', 'Noto Sans KR', 'Noto Sans JP',
+          sans-serif;
+        --font-mono:
+          ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+          'D2Coding', monospace;
+
+        --bg: #fcfcfb;
+        --bg-elevated: #ffffff;
+        --bg-sunken: #f6f6f3;
+        --text: #17181a;
+        --text-muted: #63666d;
+        --text-faint: #8b8e95;
+        --border: #e5e5e1;
+        --border-strong: #d3d3ce;
+        --accent: #1d4ed8;
+        --accent-soft: rgba(29, 78, 216, 0.08);
+        --accent-line: rgba(29, 78, 216, 0.32);
+        --warn: #b45309;
+        --warn-soft: rgba(180, 83, 9, 0.09);
+        --ok: #15803d;
+        --ok-soft: rgba(21, 128, 61, 0.1);
+        --bad: #b91c1c;
+        --bad-soft: rgba(185, 28, 28, 0.09);
+
+        --measure: 44rem;
+        --radius: 10px;
+        --radius-lg: 16px;
+        --shadow: 0 1px 2px rgba(23, 24, 26, 0.04), 0 8px 24px -16px rgba(23, 24, 26, 0.22);
+      }
+
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+
+        --bg: #0d0e10;
+        --bg-elevated: #141619;
+        --bg-sunken: #101215;
+        --text: #e8e8e5;
+        --text-muted: #a0a3aa;
+        --text-faint: #7c7f86;
+        --border: #23262b;
+        --border-strong: #33373e;
+        --accent: #8ab4ff;
+        --accent-soft: rgba(138, 180, 255, 0.12);
+        --accent-line: rgba(138, 180, 255, 0.4);
+        --warn: #f0b060;
+        --warn-soft: rgba(240, 176, 96, 0.1);
+        --ok: #6ee7a0;
+        --ok-soft: rgba(110, 231, 160, 0.12);
+        --bad: #ff8b8b;
+        --bad-soft: rgba(255, 139, 139, 0.12);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px -18px rgba(0, 0, 0, 0.9);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+        scroll-padding-top: 5rem;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          animation-duration: 0.001ms !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        line-height: 1.8;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        word-break: keep-all;
+        overflow-wrap: break-word;
+      }
+
+      ::selection {
+        background: var(--accent-soft);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        text-underline-offset: 0.18em;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 3px;
+        border-radius: 3px;
+      }
+
+      .skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        padding: 0.6rem 1rem;
+        background: var(--bg-elevated);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        z-index: 30;
+      }
+      .skip:focus {
+        left: 1rem;
+        top: 0.75rem;
+      }
+
+      /* ================================================================
+         chrome — 진행 바, 상단 바
+         ================================================================ */
+      .progress {
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 2px;
+        background: transparent;
+        z-index: 40;
+        pointer-events: none;
+      }
+      .progress span {
+        display: block;
+        height: 100%;
+        width: 0;
+        background: var(--accent);
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: color-mix(in srgb, var(--bg) 86%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-inner {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 0.65rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .back {
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .back:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: var(--bg-elevated);
+        color: var(--text-muted);
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          border-color 0.15s;
+      }
+      .icon-btn:hover {
+        color: var(--text);
+        border-color: var(--border-strong);
+      }
+      .icon-btn svg {
+        width: 17px;
+        height: 17px;
+      }
+      .icon-sun {
+        display: none;
+      }
+      :root[data-theme='dark'] .icon-sun {
+        display: block;
+      }
+      :root[data-theme='dark'] .icon-moon {
+        display: none;
+      }
+
+      /* ================================================================
+         article
+         ================================================================ */
+      .page {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 3.2rem 1.5rem 5rem;
+      }
+
+      .kicker {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 1rem;
+      }
+
+      h1 {
+        font-size: clamp(1.8rem, 5.2vw, 2.5rem);
+        line-height: 1.26;
+        letter-spacing: -0.028em;
+        margin: 0 0 0.9rem;
+        font-weight: 700;
+      }
+      h1 .sub {
+        display: block;
+        font-size: 0.5em;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: var(--text-muted);
+        margin-top: 0.6rem;
+      }
+
+      .lede {
+        font-size: 1.06rem;
+        color: var(--text-muted);
+        margin: 0 0 1.4rem;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem 0.9rem;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-faint);
+        padding-bottom: 1.6rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .meta .dot {
+        opacity: 0.5;
+      }
+
+      .series {
+        margin: -1rem 0 0;
+        padding-bottom: 1.4rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.84rem;
+        color: var(--text-faint);
+        font-family: var(--font-mono);
+      }
+
+      /* 요점 카드 */
+      .tldr {
+        margin: 2rem 0 0;
+        padding: 1.1rem 1.2rem 1.1rem 1.3rem;
+        border: 1px solid var(--border);
+        border-left: 2px solid var(--accent);
+        border-radius: var(--radius);
+        background: var(--bg-elevated);
+      }
+      .tldr h2 {
+        margin: 0 0 0.5rem;
+        font-size: 0.72rem;
+        font-family: var(--font-mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+        font-weight: 600;
+      }
+      .tldr ul {
+        margin: 0;
+        padding-left: 1.05rem;
+      }
+      .tldr li {
+        margin: 0.28rem 0;
+        font-size: 0.92rem;
+        color: var(--text-muted);
+        line-height: 1.65;
+      }
+      .tldr li strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      /* 본문 */
+      .prose {
+        margin-top: 2.9rem;
+        font-size: 1.01rem;
+      }
+      .prose > p {
+        margin: 0 0 1.2rem;
+      }
+      .prose h2 {
+        display: flex;
+        align-items: baseline;
+        gap: 0.7rem;
+        font-size: 1.3rem;
+        letter-spacing: -0.02em;
+        line-height: 1.4;
+        margin: 3.2rem 0 1.05rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+        font-weight: 700;
+      }
+      .prose h2:first-of-type {
+        margin-top: 1rem;
+        border-top: none;
+        padding-top: 0;
+      }
+      .prose h2 .num {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.04em;
+        flex: none;
+        padding-top: 0.2rem;
+      }
+      .prose strong {
+        font-weight: 650;
+      }
+      .prose em {
+        font-style: normal;
+        background: var(--accent-soft);
+        padding: 0 0.22em;
+        border-radius: 3px;
+      }
+      .prose ul,
+      .prose ol {
+        padding-left: 1.2rem;
+        margin: 0 0 1.2rem;
+      }
+      .prose li {
+        margin: 0.4rem 0;
+      }
+      .prose li::marker {
+        color: var(--text-faint);
+      }
+      .prose ol.steps {
+        counter-reset: step;
+        list-style: none;
+        padding-left: 0;
+      }
+      .prose ol.steps li {
+        position: relative;
+        padding-left: 2.1rem;
+        margin: 0.85rem 0;
+      }
+      .prose ol.steps li::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0.25rem;
+        width: 1.35rem;
+        height: 1.35rem;
+        border-radius: 50%;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent-line);
+        color: var(--accent);
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        display: grid;
+        place-items: center;
+      }
+
+      .aside {
+        margin: 1.5rem 0;
+        padding: 0.85rem 1.05rem;
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+      .aside strong {
+        color: var(--text);
+      }
+      .aside.warn {
+        background: var(--warn-soft);
+        border-color: color-mix(in srgb, var(--warn) 28%, transparent);
+      }
+
+      /* 표 */
+      .table-wrap {
+        margin: 1.6rem 0 1.7rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+        font-variant-numeric: tabular-nums;
+      }
+      caption {
+        text-align: left;
+        font-size: 0.78rem;
+        color: var(--text-faint);
+        padding-bottom: 0.55rem;
+      }
+      th,
+      td {
+        padding: 0.48rem 0.6rem;
+        border-bottom: 1px solid var(--border);
+        text-align: right;
+      }
+      thead th {
+        font-weight: 600;
+        font-size: 0.76rem;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-strong);
+        white-space: nowrap;
+      }
+      thead th:first-child,
+      tbody th {
+        text-align: left;
+      }
+      tbody th {
+        font-weight: 500;
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      td.bad {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      td.mono {
+        font-family: var(--font-mono);
+      }
+
+      code.inline {
+        font-family: var(--font-mono);
+        font-size: 0.88em;
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 0.08em 0.34em;
+      }
+
+      /* ================================================================
+         그림 (인라인 SVG)
+         ================================================================ */
+      .figure {
+        margin: 1.9rem 0 2.1rem;
+      }
+      .fig-frame {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--bg-elevated);
+        box-shadow: var(--shadow);
+        padding: 0.75rem 0.75rem 0.5rem;
+      }
+      figure svg.fig {
+        display: block;
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+      .figure figcaption {
+        margin: 0.75rem 0.2rem 0;
+        font-size: 0.81rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+        text-align: center;
+      }
+      .figure figcaption b {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .fig text {
+        font-family: var(--font-sans);
+        fill: var(--text-muted);
+      }
+      .fig .t-title {
+        font-size: 16px;
+        font-weight: 700;
+        fill: var(--text);
+      }
+      .fig .t-mono {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        fill: var(--text-faint);
+      }
+      .fig .t-note {
+        font-size: 13px;
+        fill: var(--text-faint);
+      }
+      .fig .t-accent {
+        fill: var(--accent);
+        font-weight: 600;
+      }
+      .fig .t-bad {
+        fill: var(--bad);
+      }
+      .fig .t-warn {
+        fill: var(--warn);
+      }
+      .fig .t-strip {
+        font-size: 15.5px;
+        font-weight: 700;
+      }
+      .fig .t-box {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .fig .t-halo {
+        paint-order: stroke;
+        stroke: var(--bg-elevated);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+
+      .fig .wall {
+        fill: url(#hatch);
+        stroke: var(--border-strong);
+        stroke-width: 1.5;
+      }
+      .fig .dev {
+        fill: var(--bg-sunken);
+        stroke: var(--border-strong);
+        stroke-width: 1.6;
+      }
+      .fig .wire {
+        stroke: var(--border-strong);
+        stroke-width: 1.6;
+        fill: none;
+      }
+      .fig .wave-strong {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 3;
+        stroke-linecap: round;
+      }
+      .fig .wave-weak {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        opacity: 0.5;
+      }
+      .fig .wave-tiny {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        opacity: 0.3;
+      }
+      .fig .refl {
+        fill: none;
+        stroke: var(--bad);
+        stroke-width: 1.6;
+        stroke-dasharray: 4 4;
+        opacity: 0.55;
+      }
+      .fig .panel-box {
+        fill: var(--bg-sunken);
+        stroke: var(--border);
+        stroke-width: 1.4;
+      }
+      .fig .gridline {
+        stroke: var(--border);
+        stroke-width: 1;
+        stroke-dasharray: 2 5;
+      }
+      .fig .axis {
+        stroke: var(--border-strong);
+        stroke-width: 1.4;
+      }
+      .fig .step-line {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2.4;
+        stroke-linejoin: round;
+      }
+      .fig .step-area {
+        fill: var(--accent);
+        opacity: 0.08;
+      }
+      .fig .marker {
+        stroke: var(--text-faint);
+        stroke-width: 1.2;
+        stroke-dasharray: 4 5;
+      }
+      .fig .arrow-head {
+        fill: var(--text-faint);
+      }
+
+      /* ================================================================
+         widget 공통
+         ================================================================ */
+      .widget {
+        margin: 2.1rem 0 2.4rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--bg-elevated);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+      .widget-head {
+        padding: 1.2rem 1.3rem 0;
+      }
+      .widget-kicker {
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .widget-head h3 {
+        margin: 0.4rem 0 0.3rem;
+        font-size: 1.05rem;
+        letter-spacing: -0.015em;
+        font-weight: 650;
+        line-height: 1.45;
+      }
+      .widget-head p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        line-height: 1.65;
+      }
+      .widget-body {
+        padding: 1rem 1.3rem 1.3rem;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.8rem 1.4rem;
+        margin-bottom: 1rem;
+      }
+      .ctrl {
+        flex: 1 1 12rem;
+        min-width: 0;
+      }
+      .ctrl-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin-bottom: 0.1rem;
+      }
+      .ctrl-label {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .ctrl-val {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+      }
+      .ctrl-hint {
+        font-size: 0.71rem;
+        color: var(--text-faint);
+        margin-top: 0.05rem;
+      }
+
+      input[type='range'] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 24px;
+        margin: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+      input[type='range']::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border-strong);
+      }
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        margin-top: -6px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid var(--bg-elevated);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+      input[type='range']::-moz-range-track {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border-strong);
+      }
+      input[type='range']::-moz-range-thumb {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--accent);
+        border: 2px solid var(--bg-elevated);
+      }
+
+      .presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin: -0.55rem 0 1rem;
+      }
+      .chip {
+        font-family: var(--font-mono);
+        font-size: 0.73rem;
+        padding: 0.3rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          color 0.15s,
+          background 0.15s;
+      }
+      .chip:hover {
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .chip[aria-pressed='true'] {
+        background: var(--accent-soft);
+        border-color: var(--accent-line);
+        color: var(--accent);
+      }
+
+      .btn {
+        font-family: var(--font-sans);
+        font-size: 0.84rem;
+        font-weight: 600;
+        padding: 0.5rem 0.9rem;
+        border-radius: 9px;
+        border: 1px solid var(--border-strong);
+        background: transparent;
+        color: var(--text);
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          transform 0.06s;
+      }
+      .btn:hover {
+        border-color: var(--text-faint);
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+
+      .chart-caption {
+        margin: 0.35rem 0 0;
+        font-size: 0.72rem;
+        color: var(--text-faint);
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      svg.chart {
+        display: block;
+        width: 100%;
+        max-width: 40rem;
+        margin-inline: auto;
+        height: auto;
+        overflow: visible;
+      }
+      svg.chart text {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        fill: var(--text-faint);
+      }
+      svg.chart .axis {
+        stroke: var(--border);
+        stroke-width: 1;
+      }
+      svg.chart .gridline {
+        stroke: var(--border);
+        stroke-width: 1;
+        stroke-dasharray: 2 4;
+      }
+      svg.chart .anno {
+        fill: var(--bad);
+        font-family: var(--font-mono);
+        font-weight: 600;
+        paint-order: stroke;
+        stroke: var(--bg-elevated);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+      }
+
+      /* ================================================================
+         widget A — 감쇠·체감 속도 계산기
+         ================================================================ */
+      .readout {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.4rem;
+        margin: 0.2rem 0 0.9rem;
+      }
+      .stat {
+        padding: 0.6rem 0.45rem;
+        border-radius: 9px;
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        text-align: center;
+      }
+      .stat .n {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: clamp(0.92rem, 2.8vw, 1.1rem);
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+        color: var(--text);
+        white-space: nowrap;
+      }
+      .stat .l {
+        display: block;
+        font-size: 0.67rem;
+        color: var(--text-faint);
+        letter-spacing: 0.03em;
+        margin-top: 0.15rem;
+        line-height: 1.4;
+      }
+      .stat.key {
+        background: var(--accent-soft);
+        border-color: var(--accent-line);
+      }
+      .stat.key .n {
+        color: var(--accent);
+        font-size: clamp(1rem, 3.4vw, 1.28rem);
+      }
+
+      .cmp {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem 0.8rem;
+        flex-wrap: wrap;
+        padding: 0.65rem 0.85rem;
+        margin-bottom: 1rem;
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+      }
+      .cmp .cell {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        min-width: 0;
+      }
+      .cmp .k {
+        font-size: 0.75rem;
+        color: var(--text-faint);
+        white-space: nowrap;
+      }
+      .cmp .v {
+        font-family: var(--font-mono);
+        font-size: 0.98rem;
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      .cmp .cell.now .v {
+        color: var(--accent);
+      }
+      .cmp .arrow {
+        color: var(--text-faint);
+        font-family: var(--font-mono);
+      }
+      .cmp .ratio {
+        margin-left: auto;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--bad);
+        white-space: nowrap;
+      }
+
+      .verdict {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.7rem;
+        padding: 0.65rem 0.8rem;
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
+      }
+      .badge {
+        font-family: var(--font-mono);
+        font-size: 0.73rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 0.22rem 0.58rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .badge.is-good {
+        color: var(--ok);
+        background: var(--ok-soft);
+        border-color: color-mix(in srgb, var(--ok) 34%, transparent);
+      }
+      .badge.is-mid {
+        color: var(--warn);
+        background: var(--warn-soft);
+        border-color: color-mix(in srgb, var(--warn) 34%, transparent);
+      }
+      .badge.is-bad {
+        color: var(--bad);
+        background: var(--bad-soft);
+        border-color: color-mix(in srgb, var(--bad) 34%, transparent);
+      }
+      .verdict p {
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+        flex: 1 1 14rem;
+      }
+
+      .mcs-readout {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        margin: 0.2rem 0 0.1rem;
+      }
+      .mcs-readout .l {
+        font-size: 0.77rem;
+        color: var(--text-muted);
+      }
+      .mcs-readout .n {
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .mcs-step {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2.2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+      }
+      .mcs-area {
+        fill: var(--accent);
+        opacity: 0.09;
+      }
+      .mcs-dot {
+        fill: var(--bg-elevated);
+        stroke: var(--accent);
+        stroke-width: 2.5;
+      }
+      .mcs-now {
+        stroke: var(--text-faint);
+        stroke-width: 1;
+        stroke-dasharray: 3 3;
+      }
+      .mcs-label {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        font-weight: 600;
+        fill: var(--accent) !important;
+        paint-order: stroke;
+        stroke: var(--bg-elevated);
+        stroke-width: 3.5px;
+        stroke-linejoin: round;
+      }
+
+      /* ================================================================
+         widget B — cwnd 톱니바퀴
+         ================================================================ */
+      .toggle-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.8rem;
+        margin-bottom: 0.9rem;
+      }
+      .toggle-row .lbl {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 2px;
+        gap: 2px;
+      }
+      .seg button {
+        font-family: var(--font-mono);
+        font-size: 0.74rem;
+        padding: 0.24rem 0.65rem;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+      }
+      .seg button[aria-pressed='true'] {
+        background: var(--accent);
+        color: #fff;
+      }
+      :root[data-theme='dark'] .seg button[aria-pressed='true'] {
+        color: #0b1220;
+      }
+      .toggle-row .btn {
+        margin-left: auto;
+      }
+
+      .bgrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin-bottom: 0.9rem;
+      }
+      .bcell {
+        padding: 0.7rem 0.85rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+        min-width: 0;
+      }
+      .bcell .k {
+        display: block;
+        font-size: 0.73rem;
+        color: var(--text-faint);
+      }
+      .bcell .v {
+        display: flex;
+        align-items: baseline;
+        gap: 0.2rem;
+        font-family: var(--font-mono);
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        color: var(--accent);
+        line-height: 1.3;
+      }
+      .bcell .v .u {
+        font-size: 0.6em;
+        font-weight: 500;
+        color: var(--text-muted);
+      }
+      .bcell .s {
+        display: block;
+        font-size: 0.71rem;
+        color: var(--text-faint);
+        font-family: var(--font-mono);
+      }
+      .bcell.muted .v {
+        color: var(--text-muted);
+      }
+
+      .sim-note {
+        margin: 0.7rem 0 0;
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .sim-note b {
+        color: var(--text);
+      }
+
+      /* 출처 한 줄 */
+      .sources {
+        margin-top: 2.4rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+        font-size: 0.79rem;
+        line-height: 1.7;
+        color: var(--text-faint);
+      }
+      .sources a {
+        color: var(--text-muted);
+        text-decoration: underline;
+        text-decoration-color: var(--border-strong);
+      }
+
+      /* ================================================================
+         footer
+         ================================================================ */
+      .foot {
+        border-top: 1px solid var(--border);
+        margin-top: 2rem;
+      }
+      .foot-inner {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 1.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.6rem;
+        font-family: var(--font-mono);
+        font-size: 0.76rem;
+        color: var(--text-faint);
+      }
+      .foot-inner nav {
+        display: flex;
+        gap: 1rem;
+      }
+      .foot-inner a {
+        color: var(--text-muted);
+      }
+
+      /* ================================================================
+         responsive
+         ================================================================ */
+      @media (max-width: 640px) {
+        .page {
+          padding: 2.2rem 1.1rem 4rem;
+        }
+        .readout {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .bgrid {
+          grid-template-columns: 1fr;
+        }
+        .widget-body,
+        .widget-head {
+          padding-left: 0.95rem;
+          padding-right: 0.95rem;
+        }
+        .fig-frame {
+          padding: 0.45rem 0.45rem 0.3rem;
+          border-radius: 12px;
+        }
+        .cmp .ratio {
+          margin-left: 0;
+        }
+        /* 좁은 화면에서는 SVG가 축소되므로 글자를 그만큼 키운다. */
+        .fig .t-title {
+          font-size: 28px;
+        }
+        .fig .t-mono {
+          font-size: 21px;
+        }
+        .fig .t-note {
+          font-size: 23px;
+        }
+        .fig .t-strip {
+          font-size: 24px;
+        }
+        .fig .t-box {
+          font-size: 21px;
+        }
+        svg.chart text {
+          font-size: 18px;
+        }
+        .mcs-label {
+          font-size: 18px;
+        }
+      }
+    </style>
+
+    <!-- Cloudflare Web Analytics -->
+    <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "bd9f28533afa40bf9f8054c59e776b78"}'></script>
+    <!-- End Cloudflare Web Analytics -->
+  </head>
+
+  <body>
+    <a class="skip" href="#content">본문으로 건너뛰기</a>
+    <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="back" href="/">← ggebi.github.io</a>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="다크 모드로 전환">
+          <svg
+            class="icon-sun"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="4.2"></circle>
+            <path
+              d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"
+            ></path>
+          </svg>
+          <svg
+            class="icon-moon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1Z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="content">
+      <article class="page">
+        <header>
+          <p class="kicker">[2부] · 홈 네트워크</p>
+          <h1>
+            벽 하나 넘으면 속도가 반 토막 나는 이유
+            <span class="sub">공기에서 잃은 신호와, 그걸 잘못 읽는 TCP</span>
+          </h1>
+          <p class="lede">
+            방마다 케이블을 깔았는데도 방문을 닫으면 영상이 버벅여요. 남은 몇 미터는 여전히 공기거든요.
+            오늘은 그 공기에서 벌어지는 일을 딱 두 장면으로만 볼게요. 신호가 약해질 때, 그리고 그 손실을
+            TCP가 오해할 때.
+          </p>
+          <div class="meta">
+            <span>2026-11-23</span>
+            <span class="dot">·</span>
+            <span>읽는 시간 6분</span>
+            <span class="dot">·</span>
+            <span>ggebi</span>
+          </div>
+          <p class="series">
+            1부 「<a href="/notes/home-mesh-topology/">단자함 정리와 유선 백홀</a>」에서 이어집니다.
+          </p>
+        </header>
+
+        <div class="tldr">
+          <h2>세 줄 요약</h2>
+          <ul>
+            <li>
+              벽 하나가 신호를 <strong>석고보드 3dB에서 철근콘크리트 27dB까지</strong> 깎아요. 10dB는
+              거리 3배, 20dB는 10배와 같아요.
+            </li>
+            <li>
+              신호가 약해지면 와이파이는 속도를 스르륵 줄이지 않고 <strong>기어를 한 칸씩 내립니다.</strong>
+              그래서 중간이 없는 계단이 돼요.
+            </li>
+            <li>
+              그렇게 잃은 패킷을 TCP는 <strong>“길이 막혔다”</strong>고 오해하고 전송량을 확 깎아요. 무선
+              손실은 혼잡이 아닌데도요.
+            </li>
+          </ul>
+        </div>
+
+        <div class="prose">
+          <h2 id="s1"><span class="num">01</span>유선을 깔았는데, 왜 아직 느릴까</h2>
+
+          <p>
+            1부에서 단자함을 정리하고 방마다 케이블을 깔았어요. 그때 해결한 건 L2·L3 쪽 문제였죠. NAT 홉이
+            줄고, 서브넷이 하나가 되고, 각 방의 노드가 1Gbps 유선으로 물렸죠.
+          </p>
+
+          <p>
+            그런데도 방문을 닫으면 유튜브가 480p로 떨어져요. 남은 병목은 딱 한 구간이에요.
+            <strong>AP와 폰 사이의 마지막 몇 미터.</strong> 그 구간만은 여전히 공기고, 케이블처럼 자리를
+            비워줄 방법이 없어요. 유선 백홀은 무선 구간을 없애주는 게 아니라, 두 홉을 한 홉으로 줄여줄
+            뿐이에요.
+          </p>
+
+          <p>
+            그 한 홉에서 속도는 <em>두 번</em> 잃어요. 하나는 신호가 약해져서 와이파이가 스스로 기어를
+            낮추는 순간, 다른 하나는 그렇게 잃은 패킷을 TCP가 “인터넷이 막혔다”고 잘못 읽는 순간이에요.
+            앞은 물리, 뒤는 해석이에요.
+          </p>
+
+          <div class="aside">
+            <strong>무선은 유선의 열화판이 아니에요.</strong> 유선에서 패킷 손실은 사고지만, 무선에서 손실은
+            정상 상태의 일부예요. 이 차이를 인정하지 않으면 튜닝이 전부 엉뚱한 데를 향하죠.
+          </div>
+
+          <h2 id="s2"><span class="num">02</span>주파수가 높으면 빠르지만, 벽 앞에서는 얄팍해요</h2>
+
+          <p>
+            2.4GHz의 파장은 12.5cm, 5GHz는 6cm, 6GHz는 5cm예요. 파장이 길면 문틀이나 복도 꺾임을 돌아
+            들어가고(회절), 짧으면 곧게 날아가다 벽에서 멈춰요. 2.4GHz가 방 여러 개를 넘어 잘 닿는 이유이자,
+            이웃집 공유기까지 잘 잡히는 이유죠.
+          </p>
+
+          <figure class="figure">
+            <div class="fig-frame">
+              <svg
+                class="fig"
+                viewBox="0 0 760 470"
+                role="img"
+                aria-labelledby="fig1-desc"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <desc id="fig1-desc">
+                  위쪽은 2.4GHz의 크고 느린 파도가 콘크리트 벽을 통과해 절반쯤 살아서 도착하고, 벽 끝을 돌아
+                  들어가는 경로도 있음을 보여 줍니다. 아래쪽은 5GHz와 6GHz의 작고 빠른 파도가 같은 벽에서
+                  대부분 반사되고 거의 닿지 못하는 모습입니다.
+                </desc>
+
+                <defs>
+                  <pattern
+                    id="hatch"
+                    width="7"
+                    height="7"
+                    patternUnits="userSpaceOnUse"
+                    patternTransform="rotate(45)"
+                  >
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="7"
+                      stroke="var(--border-strong)"
+                      stroke-width="1.4"
+                    ></line>
+                  </pattern>
+                  <marker
+                    id="arrow-faint"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="7"
+                    markerHeight="7"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M0,0 L10,5 L0,10 z" fill="var(--text-faint)"></path>
+                  </marker>
+                  <marker
+                    id="arrow-bad"
+                    viewBox="0 0 10 10"
+                    refX="8"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M0,0 L10,5 L0,10 z" fill="var(--bad)"></path>
+                  </marker>
+                </defs>
+
+                <!-- ============ 위: 2.4GHz ============ -->
+                <text class="t-title" x="20" y="30">2.4 GHz</text>
+                <text class="t-note" x="136" y="30">파장 12.5cm · 크고 느린 파도</text>
+
+                <rect class="wall" x="414" y="36" width="30" height="160" rx="2"></rect>
+                <text class="t-mono" x="429" y="30" text-anchor="middle">벽</text>
+
+                <circle cx="56" cy="130" r="13" fill="none" stroke="var(--accent)" stroke-width="2"></circle>
+                <path
+                  d="M44 118 A 17 17 0 0 1 44 142"
+                  fill="none"
+                  stroke="var(--accent)"
+                  stroke-width="1.6"
+                  opacity="0.5"
+                ></path>
+                <text class="t-mono" x="56" y="172" text-anchor="middle">AP</text>
+
+                <path
+                  class="wave-strong"
+                  d="M78 130 Q113 100 148 130 Q183 160 218 130 Q253 100 288 130 Q323 160 358 130 Q389 104 410 122"
+                ></path>
+                <path
+                  class="wave-weak"
+                  d="M446 130 Q478 114 510 130 Q542 146 574 130 Q606 114 638 130"
+                ></path>
+
+                <path
+                  d="M396 98 C 414 60 452 54 462 82"
+                  fill="none"
+                  stroke="var(--text-faint)"
+                  stroke-width="1.4"
+                  stroke-dasharray="3 4"
+                  marker-end="url(#arrow-faint)"
+                ></path>
+                <text class="t-mono" x="472" y="58">벽 끝을 돌아 들어가는 경로</text>
+                <text class="t-note" x="466" y="188">아직 쓸 만해요</text>
+
+                <rect class="dev" x="700" y="104" width="28" height="52" rx="6"></rect>
+                <text class="t-mono" x="714" y="172" text-anchor="middle">폰</text>
+
+                <line x1="20" y1="222" x2="740" y2="222" stroke="var(--border)" stroke-width="1"></line>
+
+                <!-- ============ 아래: 5/6GHz ============ -->
+                <text class="t-title" x="20" y="268">5 GHz · 6 GHz</text>
+                <text class="t-note" x="244" y="268">파장 6cm · 5cm · 작고 빠른 파도</text>
+
+                <rect class="wall" x="414" y="290" width="30" height="150" rx="2"></rect>
+
+                <circle
+                  cx="56"
+                  cy="376"
+                  r="13"
+                  fill="none"
+                  stroke="var(--accent)"
+                  stroke-width="2"
+                  opacity="0.75"
+                ></circle>
+                <text class="t-mono" x="56" y="418" text-anchor="middle">AP</text>
+
+                <path
+                  class="wave-strong"
+                  d="M78 376 Q92 362 106 376 Q120 390 134 376 Q148 362 162 376 Q176 390 190 376 Q204 362 218 376 Q232 390 246 376 Q260 362 274 376 Q288 390 302 376 Q316 362 330 376 Q344 390 358 376 Q372 362 386 376 Q400 390 410 378"
+                  style="stroke-width: 2.4"
+                ></path>
+
+                <path
+                  class="refl"
+                  d="M410 352 C 392 344 380 352 372 366"
+                  marker-end="url(#arrow-bad)"
+                ></path>
+                <path
+                  class="refl"
+                  d="M412 376 C 394 376 384 386 376 398"
+                  marker-end="url(#arrow-bad)"
+                ></path>
+                <path
+                  class="refl"
+                  d="M410 400 C 392 408 382 402 374 390"
+                  marker-end="url(#arrow-bad)"
+                ></path>
+
+                <path
+                  class="wave-tiny"
+                  d="M446 376 Q458 371 470 376 Q482 381 494 376 Q506 371 518 376 Q530 381 542 376"
+                ></path>
+                <text class="t-bad" x="452" y="418">거의 다 반사·흡수</text>
+
+                <rect
+                  class="dev"
+                  x="700"
+                  y="350"
+                  width="28"
+                  height="52"
+                  rx="6"
+                  opacity="0.55"
+                ></rect>
+                <text class="t-mono" x="714" y="418" text-anchor="middle">폰</text>
+              </svg>
+            </div>
+            <figcaption>
+              <b>그림 1.</b> 같은 벽, 다른 결과. 2.4GHz는 벽을 통과해도 절반쯤 살아서 도착하고, 5·6GHz는 같은
+              벽에서 대부분 되돌아와요.
+            </figcaption>
+          </figure>
+
+          <p>
+            벽을 통과할 때 잃는 양은 재질에 따라 완전히 달라져요. 같은 “벽 하나”인데요.
+          </p>
+
+          <div class="table-wrap">
+            <table>
+              <caption>벽 한 장을 통과할 때 잃는 신호 (dB, 대표값)</caption>
+              <thead>
+                <tr>
+                  <th scope="col">벽 재질</th>
+                  <th scope="col">2.4 GHz</th>
+                  <th scope="col">5 GHz</th>
+                  <th scope="col">6 GHz</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">석고보드</th>
+                  <td class="mono">3</td>
+                  <td class="mono">4</td>
+                  <td class="mono">5</td>
+                </tr>
+                <tr>
+                  <th scope="row">벽돌</th>
+                  <td class="mono">8</td>
+                  <td class="mono">11</td>
+                  <td class="mono">14</td>
+                </tr>
+                <tr>
+                  <th scope="row">철근콘크리트</th>
+                  <td class="mono">15</td>
+                  <td class="mono bad">21</td>
+                  <td class="mono bad">27</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p>
+            숫자가 와닿지 않으면 이렇게 바꿔보세요. <strong>10dB는 거리를 3배, 20dB는 10배 멀어진 것</strong>과
+            같아요. 석고보드 한 장은 별일 아니지만, 철근콘크리트 한 장은 같은 집 안에서 방을 몇 채 건너뛴 것과
+            같아요. 벽 하나에 “반 토막”이 아니라 10분의 1이 되는 이유예요.
+          </p>
+
+          <p>
+            물과 금속도 조용한 손실원이에요. 사람이 경로에 서면 3~5dB, 금속 선반이나 금속 코팅 유리(로이유리)는
+            벽보다 심할 때도 있어요. 창가인데 유독 약한 방이 있다면 이것부터 의심해보세요.
+          </p>
+
+          <section class="widget" id="calc" aria-labelledby="calc-title">
+            <div class="widget-head">
+              <span class="widget-kicker">직접 만져보기 · 01</span>
+              <h3 id="calc-title">벽을 바꿔보면 속도가 이만큼 달라져요</h3>
+              <p>
+                밴드와 거리, 벽 재질을 바꾸면 신호 세기와 체감 속도가 바로 다시 계산돼요. 같은 거리에서 벽만
+                바꿔보세요. “벽 없을 때”와 나란히 보여드립니다.
+              </p>
+            </div>
+            <div class="widget-body">
+              <noscript>
+                <p class="aside warn" style="margin-top: 0">
+                  이 위젯은 브라우저 자바스크립트로 계산해요. 스크립트를 꺼두셨다면 위의 표와 설명만으로도
+                  같은 이야기를 확인할 수 있어요.
+                </p>
+              </noscript>
+
+              <div class="presets" role="group" aria-label="밴드 선택">
+                <button class="chip" type="button" data-band="2.4">2.4 GHz · 20MHz</button>
+                <button class="chip" type="button" data-band="5" aria-pressed="true">
+                  5 GHz · 80MHz
+                </button>
+                <button class="chip" type="button" data-band="6">6 GHz · 160MHz</button>
+              </div>
+
+              <div class="controls">
+                <div class="ctrl">
+                  <div class="ctrl-head">
+                    <span class="ctrl-label" id="a-dist-label">AP와 폰 사이 거리</span>
+                    <span class="ctrl-val" id="a-dist-val">8.0 m</span>
+                  </div>
+                  <input
+                    id="a-dist"
+                    type="range"
+                    min="1"
+                    max="20"
+                    step="0.5"
+                    value="8"
+                    aria-labelledby="a-dist-label"
+                  />
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head">
+                    <span class="ctrl-label" id="a-count-label">사이에 있는 벽</span>
+                    <span class="ctrl-val" id="a-count-val">1개</span>
+                  </div>
+                  <input
+                    id="a-count"
+                    type="range"
+                    min="0"
+                    max="3"
+                    step="1"
+                    value="1"
+                    aria-labelledby="a-count-label"
+                  />
+                </div>
+              </div>
+
+              <div class="presets" role="group" aria-label="벽 재질 선택">
+                <button class="chip" type="button" data-wall="drywall">석고보드</button>
+                <button class="chip" type="button" data-wall="brick" aria-pressed="true">벽돌</button>
+                <button class="chip" type="button" data-wall="concrete">철근콘크리트</button>
+              </div>
+
+              <div class="readout">
+                <div class="stat key">
+                  <span class="n" id="a-eff">—</span><span class="l">체감 속도 (Mbps)</span>
+                </div>
+                <div class="stat">
+                  <span class="n" id="a-rssi">—</span><span class="l">신호 세기 (dBm)</span>
+                </div>
+                <div class="stat">
+                  <span class="n" id="a-snr">—</span><span class="l">SNR (dB)</span>
+                </div>
+                <div class="stat">
+                  <span class="n" id="a-mcs">—</span><span class="l">기어 (MCS)</span>
+                </div>
+              </div>
+
+              <div class="cmp">
+                <div class="cell">
+                  <span class="k">벽이 없으면</span><span class="v" id="a-open">—</span>
+                </div>
+                <span class="arrow" aria-hidden="true">→</span>
+                <div class="cell now">
+                  <span class="k">지금</span><span class="v" id="a-now">—</span>
+                </div>
+                <span class="ratio" id="a-ratio"></span>
+              </div>
+
+              <div class="verdict">
+                <span class="badge is-good" id="a-badge">쾌적</span>
+                <p id="a-verdict">계산 중…</p>
+              </div>
+
+              <div class="mcs-readout">
+                <span class="l">SNR에 따라 고를 수 있는 기어 — 중간이 없는 계단이에요</span>
+                <span class="n" id="a-mcs-label">—</span>
+              </div>
+              <svg
+                class="chart"
+                id="a-chart"
+                viewBox="0 0 480 190"
+                role="img"
+                aria-label="SNR에 따른 링크 속도 계단 그래프"
+              >
+                <line class="axis" x1="62" y1="152" x2="466" y2="152"></line>
+                <text x="62" y="172" text-anchor="middle">0</text>
+                <text x="142.8" y="172" text-anchor="middle">10</text>
+                <text x="223.6" y="172" text-anchor="middle">20</text>
+                <text x="304.4" y="172" text-anchor="middle">30</text>
+                <text x="385.2" y="172" text-anchor="middle">40</text>
+                <text x="466" y="172" text-anchor="middle">50</text>
+                <text x="264" y="187" text-anchor="middle">SNR (dB)</text>
+              </svg>
+              <p class="chart-caption">
+                가로축 SNR, 세로축 링크 속도(Mbps). 점선은 지금 조건의 위치예요.
+              </p>
+            </div>
+          </section>
+
+          <p>
+            계산기를 몇 번 움직여보면 재미있는 게 보여요. 벽이 없을 때 6GHz는 압도적인데, 철근콘크리트 한
+            장이 끼는 순간 제일 먼저 죽어요. 2.4GHz는 최고 속도가 낮은 대신 마지막까지 살아남고요. 그래서
+            “연결은 되는데 느리다”가 제일 답답한 상태가 돼요.
+          </p>
+
+          <h2 id="s3"><span class="num">03</span>신호가 약해지면 속도는 계단처럼 떨어져요</h2>
+
+          <p>
+            와이파이는 신호가 약해지면 속도를 조금씩 줄이지 않아요. 변조 방식, 그러니까 <strong>기어를 한
+            칸씩 내려요.</strong> 1024-QAM → 256-QAM → 64-QAM → 16-QAM → QPSK. 기어가 한 칸 내려갈 때마다
+            속도는 거의 절반이 돼요.
+          </p>
+
+          <figure class="figure">
+            <div class="fig-frame">
+              <svg
+                class="fig"
+                viewBox="0 0 760 382"
+                role="img"
+                aria-labelledby="fig2-desc"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <desc id="fig2-desc">
+                  신호 세기가 약해질수록 링크 속도가 완만하게 줄지 않고, 각 변조 방식의 문턱마다 계단처럼
+                  뚝뚝 떨어지는 그래프입니다. 같은 거리에서 벽 재질만 바꿔도 단계가 몇 칸씩 내려갑니다.
+                </desc>
+
+                <text x="72" y="130" text-anchor="end" class="t-mono">900</text>
+                <text x="72" y="188" text-anchor="end" class="t-mono">600</text>
+                <text x="72" y="246" text-anchor="end" class="t-mono">300</text>
+                <text x="72" y="304" text-anchor="end" class="t-mono">0</text>
+
+                <line class="gridline" x1="76" y1="126" x2="734" y2="126"></line>
+                <line class="gridline" x1="76" y1="184" x2="734" y2="184"></line>
+                <line class="gridline" x1="76" y1="242" x2="734" y2="242"></line>
+
+                <path
+                  class="step-area"
+                  d="M76 114.7 L125.4 114.7 L125.4 161 L174.7 161 L174.7 188.7 L240.5 188.7 L240.5 216.7 L289.9 216.7 L289.9 244.5 L355.7 244.5 L355.7 258.3 L421.5 258.3 L421.5 272.2 L487.3 272.2 L487.3 286.1 L536.6 286.1 L536.6 300 L734 300 L734 300 L76 300 Z"
+                ></path>
+                <path
+                  class="step-line"
+                  d="M76 114.7 L125.4 114.7 L125.4 161 L174.7 161 L174.7 188.7 L240.5 188.7 L240.5 216.7 L289.9 216.7 L289.9 244.5 L355.7 244.5 L355.7 258.3 L421.5 258.3 L421.5 272.2 L487.3 272.2 L487.3 286.1 L536.6 286.1 L536.6 300 L734 300"
+                ></path>
+
+                <line class="marker" x1="273.4" y1="96" x2="273.4" y2="300"></line>
+                <line class="marker" x1="470.8" y1="96" x2="470.8" y2="300"></line>
+                <text class="t-mono" x="273.4" y="64" text-anchor="middle">벽돌 한 장</text>
+                <text class="t-mono" x="470.8" y="64" text-anchor="middle">철근콘크리트 한 장</text>
+
+                <text class="t-mono t-halo" x="265" y="206" text-anchor="middle">432</text>
+                <text class="t-mono t-halo" x="454" y="262" text-anchor="middle">144</text>
+
+                <line class="axis" x1="76" y1="300" x2="734" y2="300"></line>
+                <text x="76" y="330" text-anchor="middle" class="t-mono">-50</text>
+                <text x="240.5" y="330" text-anchor="middle" class="t-mono">-60</text>
+                <text x="405" y="330" text-anchor="middle" class="t-mono">-70</text>
+                <text x="569.5" y="330" text-anchor="middle" class="t-mono">-80</text>
+                <text x="734" y="330" text-anchor="middle" class="t-mono">-90</text>
+                <text x="405" y="362" text-anchor="middle" class="t-mono">
+                  신호 세기 (dBm) · 오른쪽으로 갈수록 약해짐
+                </text>
+
+                <text
+                  x="20"
+                  y="210"
+                  text-anchor="middle"
+                  class="t-mono"
+                  transform="rotate(-90 20 210)"
+                >
+                  링크 속도 (Mbps)
+                </text>
+              </svg>
+            </div>
+            <figcaption>
+              <b>그림 2.</b> 신호가 약해져도 속도는 스르륵 줄지 않아요. 지금 쓸 수 있는 가장 높은 기어로
+              떨어질 뿐, 그 사이를 메워주지 않아요.
+            </figcaption>
+          </figure>
+
+          <p>
+            왜 계단일까요. 기어가 올라갈수록 신호점 사이 간격이 좁아져서, 같은 오류율을 유지하려면 훨씬 깨끗한
+            신호가 필요해요. 64-QAM에서 1024-QAM으로 갈 때만 12dB가 더 들어요. 그 문턱을 넘지 못하면 그
+            기어는 아예 못 쓰고 바로 아래 기어로 떨어져요.
+          </p>
+
+          <p>
+            그리고 “1.2Gbps”는 공기에서의 속도예요. 반이중에, ACK에, 프레임 간격에 자리를 내주고 나면 잘
+            튜닝된 환경에서도 TCP가 보는 건 링크 속도의 <strong>50~65%</strong>예요. 실제로는 600Mbps
+            남짓이죠.
+          </p>
+
+          <h2 id="s4"><span class="num">04</span>진짜 반전은 그다음 — TCP가 손실을 오해해요</h2>
+
+          <p>
+            802.11은 똑똑해요. 프레임마다 ACK를 받고, 안 오면 다시 보내요. 덕분에 공중에서 잃은 패킷 상당수는
+            TCP까지 올라가지 않아요. 그런데 공짜가 아니에요. <strong>재전송은 지연으로 값을 치러요.</strong> 몇
+            번 겹치면 RTT가 수 밀리초에서 수십 밀리초로 튀죠.
+          </p>
+
+          <p>
+            TCP는 1988년에 만든 가정 위에 서 있어요. “패킷이 사라졌다 = 어딘가 큐가 넘쳤다 = 길이 막혔다.”
+            유선에서는 대체로 맞는 말이에요. 그래서 손실을 보면 보내는 양을 줄여요. CUBIC은 30%, Reno는
+            절반으로.
+          </p>
+
+          <figure class="figure">
+            <div class="fig-frame">
+              <svg
+                class="fig"
+                viewBox="0 0 760 500"
+                role="img"
+                aria-labelledby="fig3-desc"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <desc id="fig3-desc">
+                  위에는 실제로 일어난 일로, 전파가 벽에서 잠깐 튀어 패킷 하나가 사라졌을 뿐 도로는 비어 있는
+                  모습입니다. 아래에는 TCP가 상상한 일로, 고속도로가 차로 꽉 막혀 전송량을 절반으로 줄이는
+                  모습입니다.
+                </desc>
+
+                <!-- 위 패널 -->
+                <rect class="panel-box" x="12" y="10" width="736" height="196" rx="16"></rect>
+                <text class="t-title" x="36" y="44">① 실제로 벌어진 일</text>
+                <text class="t-note" x="36" y="78">
+                  공기에서 패킷 하나가 잠깐 튄 것뿐, 길은 텅 비어 있어요
+                </text>
+
+                <circle
+                  cx="72"
+                  cy="140"
+                  r="12"
+                  fill="none"
+                  stroke="var(--accent)"
+                  stroke-width="2"
+                ></circle>
+                <path
+                  d="M61 129 A 16 16 0 0 1 61 151"
+                  fill="none"
+                  stroke="var(--accent)"
+                  stroke-width="1.5"
+                  opacity="0.5"
+                ></path>
+                <text class="t-mono" x="72" y="176" text-anchor="middle">AP</text>
+
+                <line class="wire" x1="92" y1="140" x2="646" y2="140"></line>
+
+                <rect x="212" y="130" width="20" height="20" rx="4" fill="var(--accent)"></rect>
+                <path
+                  d="M240 140 L258 140"
+                  stroke="var(--accent)"
+                  stroke-width="1.8"
+                  marker-end="url(#arrow-faint)"
+                ></path>
+
+                <rect class="wall" x="332" y="94" width="18" height="92" rx="2"></rect>
+
+                <rect
+                  x="360"
+                  y="130"
+                  width="20"
+                  height="20"
+                  rx="4"
+                  fill="none"
+                  stroke="var(--bad)"
+                  stroke-width="1.4"
+                  stroke-dasharray="3 3"
+                  opacity="0.55"
+                ></rect>
+                <path
+                  d="M386 132 L398 148 M398 132 L386 148"
+                  stroke="var(--bad)"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                ></path>
+                <path
+                  d="M300 128 Q316 104 332 114"
+                  fill="none"
+                  stroke="var(--bad)"
+                  stroke-width="1.4"
+                  stroke-dasharray="3 3"
+                  opacity="0.55"
+                  marker-end="url(#arrow-bad)"
+                ></path>
+                <text class="t-bad" x="404" y="118">여기서 사라짐</text>
+
+                <rect class="dev" x="648" y="116" width="26" height="48" rx="6"></rect>
+                <text class="t-mono" x="661" y="180" text-anchor="middle">폰</text>
+
+                <!-- 연결 화살표 -->
+                <path
+                  d="M380 228 L380 250 M368 242 L380 254 L392 242"
+                  fill="none"
+                  stroke="var(--text-faint)"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
+                <text class="t-mono" x="400" y="248">TCP의 머릿속</text>
+
+                <!-- 아래 패널 -->
+                <rect class="panel-box" x="12" y="282" width="736" height="204" rx="16"></rect>
+                <text class="t-title" x="36" y="314">② TCP가 이해한 일</text>
+                <text class="t-note" x="36" y="346">
+                  패킷이 사라졌으니 어딘가 큐가 넘쳤겠지 → “혼잡이다!”
+                </text>
+
+                <!-- 도로 -->
+                <rect
+                  x="36"
+                  y="358"
+                  width="436"
+                  height="96"
+                  rx="10"
+                  fill="var(--bg-elevated)"
+                  stroke="var(--border)"
+                  stroke-width="1.4"
+                ></rect>
+                <line
+                  x1="46"
+                  y1="406"
+                  x2="462"
+                  y2="406"
+                  stroke="var(--border-strong)"
+                  stroke-width="1.6"
+                  stroke-dasharray="12 10"
+                ></line>
+
+                <!-- 차들 (위 차선) -->
+                <g fill="var(--border-strong)">
+                  <rect x="52" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="94" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="136" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="178" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="220" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="262" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="304" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="346" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="388" y="366" width="34" height="26" rx="5"></rect>
+                  <rect x="430" y="366" width="30" height="26" rx="5"></rect>
+                  <rect x="52" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="94" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="136" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="178" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="220" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="262" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="304" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="346" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="388" y="420" width="34" height="26" rx="5"></rect>
+                  <rect x="430" y="420" width="30" height="26" rx="5"></rect>
+                </g>
+
+                <!-- 브레이크 박스 -->
+                <path
+                  d="M480 406 L508 406"
+                  stroke="var(--text-faint)"
+                  stroke-width="1.8"
+                  marker-end="url(#arrow-faint)"
+                ></path>
+                <rect
+                  x="514"
+                  y="358"
+                  width="210"
+                  height="96"
+                  rx="12"
+                  fill="var(--bad-soft)"
+                  stroke="var(--bad)"
+                  stroke-width="1.4"
+                  stroke-dasharray="5 4"
+                ></rect>
+                <text class="t-box t-bad" x="619" y="386" text-anchor="middle">cwnd 반 토막</text>
+                <text class="t-mono" x="619" y="412" text-anchor="middle">속도도 반 토막</text>
+                <text class="t-mono" x="619" y="442" text-anchor="middle">다시 늘리고, 또 깎고</text>
+
+                <text class="t-note" x="36" y="472">
+                  큐는 비어 있었지만, TCP는 구분할 방법이 없어요
+                </text>
+              </svg>
+            </div>
+            <figcaption>
+              <b>그림 3.</b> 무선 손실 ≠ 도로 정체. 전파가 잠깐 튄 것뿐인데 TCP는 길이 막힌 줄 알고
+              브레이크를 밟아요.
+            </figcaption>
+          </figure>
+
+          <p>
+            무선에서는 이 가정이 깨집니다. <strong>큐가 텅 비어 있어도 전파는 잃어요.</strong> 간섭, 반사, 벽,
+            지나가는 사람 때문이죠. TCP는 이걸 구분할 방법이 없어서, 멀쩡한 길을 두고 스스로 브레이크를
+            밟아요. 깎고, 다시 늘리고, 또 깎고. 그 톱니의 평균 높이는 링크가 감당할 수 있는 높이보다 훨씬
+            낮아요.
+          </p>
+
+          <p>
+            얼마나 낮아지냐면요. 손실률 1%에 RTT 40ms면, 1.2Gbps 링크에서 TCP가 받는 건 수 Mbps예요.
+            손실률이 10배가 되면 처리량은 √10분의 1, RTT가 4배가 되면 4분의 1. 무선은 이 두 축을 동시에
+            나쁘게 만들어요.
+          </p>
+
+          <section class="widget" id="cwnd" aria-labelledby="cwnd-title">
+            <div class="widget-head">
+              <span class="widget-kicker">직접 만져보기 · 02</span>
+              <h3 id="cwnd-title">손실 하나가 전송량을 얼마나 깎는지 보기</h3>
+              <p>
+                무선에서 TCP가 겪는 손실률과 지연 흔들림을 바꿔보세요. 위아래로 톱니처럼 깎였다가 다시
+                올라오는 게 보여요. 혼잡 제어를 바꾸면 그 모양 자체가 달라져요.
+              </p>
+            </div>
+            <div class="widget-body">
+              <noscript>
+                <p class="aside warn" style="margin-top: 0">
+                  이 위젯은 브라우저 자바스크립트로 움직여요. 스크립트를 꺼두셨다면 본문의 설명만으로도
+                  충분해요.
+                </p>
+              </noscript>
+
+              <div class="toggle-row">
+                <span class="lbl">혼잡 제어</span>
+                <span class="seg" role="group" aria-label="혼잡 제어 선택">
+                  <button type="button" data-cc="cubic" aria-pressed="true">CUBIC</button>
+                  <button type="button" data-cc="reno" aria-pressed="false">Reno</button>
+                  <button type="button" data-cc="bbr" aria-pressed="false">BBR</button>
+                </span>
+                <button class="btn" type="button" id="b-reroll">다시 던지기</button>
+              </div>
+
+              <div class="controls">
+                <div class="ctrl">
+                  <div class="ctrl-head">
+                    <span class="ctrl-label" id="b-loss-label">TCP까지 살아남은 손실률</span>
+                    <span class="ctrl-val" id="b-loss-val">0.40%</span>
+                  </div>
+                  <input
+                    id="b-loss"
+                    type="range"
+                    min="0"
+                    max="300"
+                    step="5"
+                    value="40"
+                    aria-labelledby="b-loss-label"
+                  />
+                  <div class="ctrl-hint">802.11 재전송을 통과하고 남은 몫</div>
+                </div>
+                <div class="ctrl">
+                  <div class="ctrl-head">
+                    <span class="ctrl-label" id="b-jitter-label">지연 흔들림</span>
+                    <span class="ctrl-val" id="b-jitter-val">20 ms</span>
+                  </div>
+                  <input
+                    id="b-jitter"
+                    type="range"
+                    min="0"
+                    max="80"
+                    step="1"
+                    value="20"
+                    aria-labelledby="b-jitter-label"
+                  />
+                  <div class="ctrl-hint">경쟁·재전송·큐 대기가 만드는 RTT 변동 폭</div>
+                </div>
+              </div>
+
+              <div class="bgrid">
+                <div class="bcell">
+                  <span class="k">무선 체감 속도</span>
+                  <div class="v"><span id="b-thr">—</span><span class="u">Mbps</span></div>
+                  <span class="s" id="b-sub">링크 400Mbps의 —</span>
+                </div>
+                <div class="bcell muted">
+                  <span class="k">같은 자리의 유선</span>
+                  <div class="v"><span>940</span><span class="u">Mbps</span></div>
+                  <span class="s">손실 거의 0 · RTT 5ms</span>
+                </div>
+              </div>
+
+              <svg
+                class="chart"
+                id="b-chart"
+                viewBox="0 0 480 200"
+                role="img"
+                aria-label="무선 환경에서 TCP 혼잡 윈도우가 톱니처럼 오르내리는 그래프"
+              ></svg>
+              <div class="chart-caption">
+                세로축 · 한 번에 보낼 수 있는 양(패킷), 가로축 · 왕복 160회 · 빨간 점 = 손실로 깎인 지점
+              </div>
+              <p class="sim-note" id="b-note"></p>
+            </div>
+          </section>
+
+          <p>
+            슬라이더를 흔들어보면 손실률이 0.1%만 되어도 톱니가 확 낮아지는 게 보여요. BBR로 바꾸면 톱니
+            자체가 사라져요. 손실을 혼잡 신호로 쓰지 않고, 병목 대역폭과 최소 RTT로 속도를 정하기
+            때문이에요. 다만 위젯의 손실률은 “802.11이 가려주고 남은 몫”이라 실제보다 크게 잡혀 있어요.
+            실제 무선에서 TCP가 보는 손실률은 이보다 훨씬 낮아요.
+          </p>
+
+          <h2 id="s5"><span class="num">05</span>그래서 순서가 있어요</h2>
+
+          <p>
+            지금까지를 한 줄로 이으면 이래요. <strong>감쇠 → SNR 하락 → 기어 하향 → 재전송·지연 → TCP
+            오해 → 속도 반 토막.</strong> 이 사슬에서 가장 싼 고리는 항상 앞쪽에 있어요. 뒤에서 아무리
+            튜닝해도 앞에서 잃은 신호는 돌아오지 않아요.
+          </p>
+
+          <figure class="figure">
+            <div class="fig-frame">
+              <svg
+                class="fig"
+                viewBox="0 0 760 420"
+                role="img"
+                aria-labelledby="fig4-desc"
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <desc id="fig4-desc">
+                  유선 백홀로 무선 홉을 줄이고, 채널을 깨끗하게 잡고, 그래도 남으면 BBR 같은 혼잡 제어를 쓰는
+                  세 단계 순서를 정리한 치트시트입니다. 장비 교체는 맨 마지막이에요.
+                </desc>
+
+                <!-- 1 -->
+                <rect class="panel-box" x="12" y="8" width="736" height="100" rx="14"></rect>
+                <circle
+                  cx="52"
+                  cy="58"
+                  r="17"
+                  fill="var(--accent-soft)"
+                  stroke="var(--accent-line)"
+                  stroke-width="1.4"
+                ></circle>
+                <text class="t-mono t-accent" x="52" y="64" text-anchor="middle">1</text>
+                <text class="t-title" x="84" y="48">AP를 방 안으로 (유선 백홀)</text>
+                <text class="t-note" x="84" y="82">
+                  무선 홉을 하나 없애요 · 효과 최고, 값은 최저
+                </text>
+                <circle cx="648" cy="58" r="5" fill="var(--accent)"></circle>
+                <circle cx="690" cy="58" r="5" fill="var(--accent)"></circle>
+                <circle cx="732" cy="58" r="5" fill="var(--accent)"></circle>
+                <line x1="653" y1="58" x2="685" y2="58" stroke="var(--accent)" stroke-width="3"></line>
+                <line x1="695" y1="58" x2="727" y2="58" stroke="var(--accent)" stroke-width="3"></line>
+
+                <!-- 2 -->
+                <rect class="panel-box" x="12" y="124" width="736" height="100" rx="14"></rect>
+                <circle
+                  cx="52"
+                  cy="174"
+                  r="17"
+                  fill="var(--accent-soft)"
+                  stroke="var(--accent-line)"
+                  stroke-width="1.4"
+                ></circle>
+                <text class="t-mono t-accent" x="52" y="180" text-anchor="middle">2</text>
+                <text class="t-title" x="84" y="164">채널은 넓히기 전에 깨끗하게</text>
+                <text class="t-note" x="84" y="198">
+                  조용한 80MHz가 시끄러운 160MHz를 이겨요
+                </text>
+                <rect x="666" y="186" width="12" height="20" rx="2" fill="var(--accent)" opacity="0.55"></rect>
+                <rect x="690" y="170" width="12" height="36" rx="2" fill="var(--accent)" opacity="0.8"></rect>
+                <rect x="714" y="150" width="12" height="56" rx="2" fill="var(--accent)"></rect>
+
+                <!-- 3 -->
+                <rect class="panel-box" x="12" y="240" width="736" height="100" rx="14"></rect>
+                <circle
+                  cx="52"
+                  cy="290"
+                  r="17"
+                  fill="var(--accent-soft)"
+                  stroke="var(--accent-line)"
+                  stroke-width="1.4"
+                ></circle>
+                <text class="t-mono t-accent" x="52" y="296" text-anchor="middle">3</text>
+                <text class="t-title" x="84" y="280">그래도 남으면 L4 — BBR</text>
+                <text class="t-note" x="84" y="314">
+                  손실과 혼잡을 구분 · 만능은 아니에요
+                </text>
+                <path
+                  d="M666 326 L666 302 L690 302 L690 286 L714 286 L714 268 L734 268"
+                  fill="none"
+                  stroke="var(--accent)"
+                  stroke-width="2.6"
+                  stroke-linejoin="round"
+                  stroke-linecap="round"
+                  opacity="0.85"
+                ></path>
+
+                <!-- 경고 -->
+                <rect x="12" y="356" width="736" height="52" rx="12" fill="var(--warn-soft)"></rect>
+                <text class="t-warn t-strip" x="380" y="388" text-anchor="middle">
+                  출력 올리기 · 비싼 공유기 교체는 맨 마지막이에요
+                </text>
+              </svg>
+            </div>
+            <figcaption>
+              <b>그림 4.</b> 1부와 2부의 결론을 한 장으로. 순서를 바꾸면 돈만 더 들고, 체감은 그대로예요.
+            </figcaption>
+          </figure>
+
+          <p>그래서 순서는 이렇게 잡아요.</p>
+
+          <ol class="steps">
+            <li>
+              <strong>AP를 방 안으로.</strong> 1부에서 한 그 유선 백홀이 여기서 다시 나와요. 비싼 안테나보다
+              케이블 한 가닥이 거의 항상 이겨요. 메시 노드를 하나 더 사는 대신 유선을 한 가닥 더 까는 편이
+              싸고 빨라요.
+            </li>
+            <li>
+              <strong>채널은 넓히기 전에 깨끗하게.</strong> 2.4GHz는 20MHz 고정이 거의 항상 이득이고,
+              5GHz는 160MHz보다 조용한 80MHz가 나을 때가 많아요. 이웃 AP가 많은 곳에서는 채널 선택만으로도
+              기어 한두 칸이 달라져요.
+            </li>
+            <li>
+              <strong>그래도 남으면 L4.</strong> BBR은 손실을 혼잡으로 읽지 않아요. 다만 큐를 채우는 경향이
+              있어 버퍼가 부풀 수 있고, 같은 길을 쓰는 다른 흐름과 공정하지 않을 수 있어요. 공짜 점심은
+              없어요.
+            </li>
+          </ol>
+
+          <p>
+            그리고 바꾸기 전에 재보세요. “느리다”는 측정 항목이 아니에요. 방마다 실제 전송 속도를 재고, 전송
+            중에 핑을 같이 돌려 RTT가 얼마나 튀는지 보세요. AP 화면에서 단말별 SNR과 기어를 보면 어느 단계에서
+            무너지는지 바로 보여요. <strong>SNR은 멀쩡한데 기어가 낮으면 간섭, SNR 자체가 낮으면 위치와
+            벽</strong>이에요.
+          </p>
+
+          <p>
+            벽 하나에 반 토막. 그 반은 벽이 가져가고, 나머지 반은 우리가 잘못 읽은 신호가 가져가요. 벽을
+            없앨 수는 없어도, AP를 벽 안쪽으로 데려오고 해석을 고치는 건 할 수 있죠.
+          </p>
+
+          <p class="sources">
+            참고 · IEEE 802.11ax-2021 ·
+            <a href="https://www.rfc-editor.org/rfc/rfc8312" rel="noopener">RFC 8312 (CUBIC)</a> ·
+            <a href="https://queue.acm.org/detail.cfm?id=3022184" rel="noopener">BBR (ACM Queue, 2016)</a> ·
+            ITU-R P.2040 (재질별 투과 손실). 수치는 2×2 MIMO, 20·80·160MHz, 송신 20dBm 기준의 1차 근사이고,
+            실제 환경에서는 ±10dB 흔들려요.
+          </p>
+        </div>
+      </article>
+    </main>
+
+    <footer class="foot">
+      <div class="foot-inner">
+        <span>© 2026 ggebi</span>
+        <nav>
+          <a href="/">글</a>
+          <a href="/rss.xml">RSS</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var root = document.documentElement;
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+
+        /* ------------------------------------------------------------
+           테마 토글
+           ------------------------------------------------------------ */
+        (function () {
+          var button = $('theme-toggle');
+          if (!button) return;
+
+          function render() {
+            var dark = root.dataset.theme === 'dark';
+            button.setAttribute('aria-label', dark ? '라이트 모드로 전환' : '다크 모드로 전환');
+            button.setAttribute('title', dark ? '라이트 모드' : '다크 모드');
+          }
+
+          button.addEventListener('click', function () {
+            var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+            root.dataset.theme = next;
+            try {
+              localStorage.setItem('theme', next);
+            } catch (e) {}
+            render();
+          });
+
+          render();
+        })();
+
+        /* ------------------------------------------------------------
+           읽기 진행 바
+           ------------------------------------------------------------ */
+        (function () {
+          var bar = $('progress-bar');
+          if (!bar) return;
+          var queued = false;
+
+          function update() {
+            queued = false;
+            var doc = document.documentElement;
+            var max = doc.scrollHeight - window.innerHeight;
+            var ratio = max > 0 ? window.scrollY / max : 0;
+            bar.style.width = Math.max(0, Math.min(1, ratio)) * 100 + '%';
+          }
+
+          window.addEventListener(
+            'scroll',
+            function () {
+              if (queued) return;
+              queued = true;
+              window.requestAnimationFrame(update);
+            },
+            { passive: true }
+          );
+          window.addEventListener('resize', update, { passive: true });
+          update();
+        })();
+
+        /* ------------------------------------------------------------
+           공용 도우미
+           ------------------------------------------------------------ */
+        var SVGNS = 'http://www.w3.org/2000/svg';
+
+        function el(name, attrs) {
+          var node = document.createElementNS(SVGNS, name);
+          if (attrs) {
+            for (var k in attrs) {
+              if (Object.prototype.hasOwnProperty.call(attrs, k)) {
+                node.setAttribute(k, String(attrs[k]));
+              }
+            }
+          }
+          return node;
+        }
+
+        function clamp(v, lo, hi) {
+          return v < lo ? lo : v > hi ? hi : v;
+        }
+
+        function log10(x) {
+          return Math.log(x) / Math.LN10;
+        }
+
+        function fmtRate(v) {
+          if (!isFinite(v)) return '—';
+          if (v === 0) return '0';
+          if (v >= 1000) return Math.round(v).toLocaleString('en-US');
+          if (v >= 100) return String(Math.round(v));
+          if (v >= 10) return v.toFixed(1);
+          return v.toFixed(2);
+        }
+
+        /* ============================================================
+           위젯 A — 감쇠 & 체감 속도 계산기
+           ============================================================ */
+        (function () {
+          var chart = $('a-chart');
+          if (!chart) return;
+
+          var BANDS = {
+            '2.4': { f: 2412e6, sc: 234, noise: -87 },
+            '5': { f: 5180e6, sc: 980, noise: -89 },
+            '6': { f: 5955e6, sc: 1960, noise: -92 }
+          };
+
+          var WALLS = {
+            drywall: { '2.4': 3, '5': 4, '6': 5 },
+            brick: { '2.4': 8, '5': 11, '6': 14 },
+            concrete: { '2.4': 15, '5': 21, '6': 27 }
+          };
+
+          // MCS 0~11: 비트/부반송파 (변조 차수 × 부호율)
+          var BITS = [0.5, 1, 1.5, 2, 3, 4, 4.5, 5, 6, 20 / 3, 7.5, 25 / 3];
+          var REQ = [13, 16, 18, 21, 25, 29, 30, 31, 36, 38, 41, 43];
+          var MOD = [
+            'BPSK 1/2',
+            'QPSK 1/2',
+            'QPSK 3/4',
+            '16-QAM 1/2',
+            '16-QAM 3/4',
+            '64-QAM 2/3',
+            '64-QAM 3/4',
+            '64-QAM 5/6',
+            '256-QAM 3/4',
+            '256-QAM 5/6',
+            '1024-QAM 3/4',
+            '1024-QAM 5/6'
+          ];
+
+          var state = { band: '5', dist: 8, wall: 'brick', count: 1 };
+
+          var elDist = $('a-dist');
+          var elDistVal = $('a-dist-val');
+          var elCount = $('a-count');
+          var elCountVal = $('a-count-val');
+          var elRssi = $('a-rssi');
+          var elSnr = $('a-snr');
+          var elMcs = $('a-mcs');
+          var elEff = $('a-eff');
+          var elOpen = $('a-open');
+          var elNow = $('a-now');
+          var elRatio = $('a-ratio');
+          var elBadge = $('a-badge');
+          var elVerdict = $('a-verdict');
+          var elMcsLabel = $('a-mcs-label');
+
+          var bandChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-band]'));
+          var wallChips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-wall]'));
+
+          function ratesFor(band) {
+            var sc = BANDS[band].sc;
+            var list = [];
+            for (var i = 0; i < BITS.length; i++) {
+              // 2×2 MIMO, 심볼 시간 13.6µs (GI 0.8µs)
+              list.push(((sc * BITS[i]) / 13.6e-6 / 1e6) * 2);
+            }
+            return list;
+          }
+
+          var RATES = ratesFor('5');
+
+          function compute(count) {
+            var band = BANDS[state.band];
+            var fspl = 20 * log10(state.dist) + 20 * log10(band.f) - 147.55;
+            var wallDb = WALLS[state.wall][state.band] * count;
+            var rssi = 20 - fspl - wallDb - 8;
+            var snr = rssi - band.noise;
+
+            var mcs = -1;
+            for (var i = 0; i < REQ.length; i++) {
+              if (snr >= REQ[i]) mcs = i;
+            }
+
+            var phy = mcs >= 0 ? RATES[mcs] : 0;
+            var per = 1;
+            var eff = 0;
+            if (mcs >= 0) {
+              var margin = snr - REQ[mcs];
+              per = Math.max(1e-4, 0.1 * Math.pow(10, -margin / 8));
+              eff = phy * 0.62 * (1 - per) * 0.92;
+            }
+
+            return { rssi: rssi, snr: snr, mcs: mcs, phy: phy, per: per, eff: eff };
+          }
+
+          function drawChart(res) {
+            var W = 480,
+              PL = 62,
+              PR = 14,
+              PT = 16,
+              BASE = 152;
+            var plotW = W - PL - PR;
+            var plotH = BASE - PT;
+            var yMax = Math.ceil((RATES[11] * 1.06) / 200) * 200;
+
+            function x(snr) {
+              return PL + (clamp(snr, 0, 50) / 50) * plotW;
+            }
+            function y(rate) {
+              return BASE - (clamp(rate, 0, yMax) / yMax) * plotH;
+            }
+
+            var g = $('a-dyn');
+            if (!g) {
+              g = el('g', { id: 'a-dyn' });
+              chart.appendChild(g);
+            }
+            g.textContent = '';
+
+            [0, yMax / 2, yMax].forEach(function (v) {
+              var t = el('text', { x: PL - 7, y: (y(v) + 4).toFixed(1), 'text-anchor': 'end' });
+              t.textContent = fmtRate(v);
+              g.appendChild(t);
+              if (v > 0) {
+                g.appendChild(
+                  el('line', {
+                    class: 'gridline',
+                    x1: PL,
+                    y1: y(v).toFixed(1),
+                    x2: W - PR,
+                    y2: y(v).toFixed(1)
+                  })
+                );
+              }
+            });
+
+            // 계단 경로 — 문턱마다 위로 올라가고, 그 사이는 평평하다.
+            var d = 'M' + x(0).toFixed(1) + ',' + y(0).toFixed(1);
+            d += 'L' + x(REQ[0]).toFixed(1) + ',' + y(0).toFixed(1);
+            for (var i = 0; i < REQ.length; i++) {
+              var next = i + 1 < REQ.length ? REQ[i + 1] : 50;
+              d += 'L' + x(REQ[i]).toFixed(1) + ',' + y(RATES[i]).toFixed(1);
+              d += 'L' + x(next).toFixed(1) + ',' + y(RATES[i]).toFixed(1);
+            }
+
+            g.appendChild(
+              el('path', {
+                class: 'mcs-area',
+                d:
+                  d +
+                  'L' +
+                  x(50).toFixed(1) +
+                  ',' +
+                  y(0).toFixed(1) +
+                  'L' +
+                  x(0).toFixed(1) +
+                  ',' +
+                  y(0).toFixed(1) +
+                  'Z'
+              })
+            );
+            g.appendChild(el('path', { class: 'mcs-step', d: d }));
+
+            if (res.mcs >= 0) {
+              var cx = x(res.snr);
+              var cy = y(res.phy);
+              g.appendChild(
+                el('line', {
+                  class: 'mcs-now',
+                  x1: cx.toFixed(1),
+                  y1: PT,
+                  x2: cx.toFixed(1),
+                  y2: BASE
+                })
+              );
+              g.appendChild(
+                el('circle', { class: 'mcs-dot', cx: cx.toFixed(1), cy: cy.toFixed(1), r: 4.5 })
+              );
+              var label = el('text', {
+                class: 'mcs-label anno',
+                x: (cx - 10).toFixed(1),
+                y: (cy - 12).toFixed(1),
+                'text-anchor': 'end'
+              });
+              label.textContent = '지금 MCS ' + res.mcs + ' · ' + Math.round(res.phy) + 'Mbps';
+              g.appendChild(label);
+            } else {
+              var bad = el('text', {
+                class: 'mcs-label',
+                x: (W - PR).toFixed(1),
+                y: (PT + 16).toFixed(1),
+                'text-anchor': 'end'
+              });
+              bad.textContent = '모든 기어 탈락 · 링크 없음';
+              g.appendChild(bad);
+            }
+          }
+
+          function render() {
+            var res = compute(state.count);
+            var open = compute(0);
+
+            elDistVal.textContent = state.dist.toFixed(1) + ' m';
+            elCountVal.textContent = state.count + '개';
+            elRssi.textContent = res.rssi < -95 ? '≤ −95' : res.rssi.toFixed(1);
+            elSnr.textContent = res.snr < -5 ? '≤ −5' : res.snr.toFixed(1);
+            elMcs.textContent = res.mcs >= 0 ? 'MCS ' + res.mcs : '—';
+            elEff.textContent = fmtRate(res.eff);
+
+            elOpen.textContent = fmtRate(open.eff) + ' Mbps';
+            elNow.textContent = fmtRate(res.eff) + ' Mbps';
+
+            if (state.count > 0 && open.eff > 0 && res.eff > 0) {
+              var lost = open.eff / res.eff;
+              elRatio.textContent =
+                lost >= 1.15 ? '체감 ' + lost.toFixed(lost < 10 ? 1 : 0) + '배 느려짐' : '차이 거의 없음';
+            } else {
+              elRatio.textContent = '';
+            }
+
+            elMcsLabel.textContent =
+              res.mcs >= 0 ? 'MCS ' + res.mcs + ' · ' + MOD[res.mcs] : 'MCS 없음';
+
+            var badge, body;
+            if (res.mcs < 0) {
+              badge = { cls: 'is-bad', text: '끊김' };
+              body =
+                'SNR <strong>' +
+                res.snr.toFixed(1) +
+                'dB</strong> — 가장 낮은 기어의 문턱 13dB에도 못 미쳐요. 연결이 끊기거나 수백 kbps대로 떨어집니다.';
+            } else if (res.mcs >= 6) {
+              badge = { cls: 'is-good', text: '쾌적' };
+              body =
+                'SNR <strong>' +
+                res.snr.toFixed(1) +
+                'dB</strong> — MCS ' +
+                res.mcs +
+                ' (' +
+                MOD[res.mcs] +
+                '). 공기 시간 몫을 빼도 링크의 절반 이상이 남아요.';
+            } else {
+              badge = { cls: 'is-mid', text: '주의' };
+              body =
+                'SNR <strong>' +
+                res.snr.toFixed(1) +
+                'dB</strong> — MCS ' +
+                res.mcs +
+                ' (' +
+                MOD[res.mcs] +
+                '). 연결은 유지되지만 기어가 낮아요. 재전송이 늘고 지연이 흔들립니다.';
+            }
+            elBadge.className = 'badge ' + badge.cls;
+            elBadge.textContent = badge.text;
+            elVerdict.innerHTML = body;
+
+            bandChips.forEach(function (c) {
+              c.setAttribute('aria-pressed', String(c.getAttribute('data-band') === state.band));
+            });
+            wallChips.forEach(function (c) {
+              c.setAttribute('aria-pressed', String(c.getAttribute('data-wall') === state.wall));
+            });
+
+            drawChart(res);
+          }
+
+          bandChips.forEach(function (chip) {
+            chip.addEventListener('click', function () {
+              state.band = chip.getAttribute('data-band');
+              RATES = ratesFor(state.band);
+              render();
+            });
+          });
+
+          wallChips.forEach(function (chip) {
+            chip.addEventListener('click', function () {
+              state.wall = chip.getAttribute('data-wall');
+              render();
+            });
+          });
+
+          elDist.addEventListener('input', function () {
+            state.dist = parseFloat(elDist.value);
+            render();
+          });
+
+          elCount.addEventListener('input', function () {
+            state.count = parseInt(elCount.value, 10);
+            render();
+          });
+
+          elDist.value = String(state.dist);
+          elCount.value = String(state.count);
+          render();
+        })();
+
+        /* ============================================================
+           위젯 B — cwnd 톱니바퀴
+           ============================================================ */
+        (function () {
+          var chart = $('b-chart');
+          if (!chart) return;
+
+          var MSS = 1460;
+          var CAP_CWND = 1100;
+          var ROUNDS = 160;
+          var LINK_MBPS = 400;
+
+          var state = { lossPct: 0.4, jitter: 20, cc: 'cubic', seed: 20261123 };
+
+          var elLoss = $('b-loss');
+          var elLossVal = $('b-loss-val');
+          var elJitter = $('b-jitter');
+          var elJitterVal = $('b-jitter-val');
+          var elThr = $('b-thr');
+          var elSub = $('b-sub');
+          var elNote = $('b-note');
+          var ccButtons = Array.prototype.slice.call(document.querySelectorAll('button[data-cc]'));
+
+          function rng(seed) {
+            var a = seed >>> 0;
+            return function () {
+              a = (a + 0x6d2b79f5) >>> 0;
+              var t = a;
+              t = Math.imul(t ^ (t >>> 15), t | 1);
+              t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+              return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+          }
+
+          function simulate() {
+            var rand = rng(state.seed);
+            var p = state.lossPct / 100;
+            var cwnd = 20;
+            var wMax = 20;
+            var epoch = 0;
+            var K = 0;
+            var C = 0.08;
+            var beta = state.cc === 'reno' ? 0.5 : 0.7;
+            var series = [];
+            var losses = 0;
+            var drops = 0;
+            var maxDrop = null;
+            var rttSum = 0;
+            var minRtt = (8 + state.jitter * 0.25) / 1000;
+
+            for (var r = 0; r < ROUNDS; r++) {
+              var pRound = 1 - Math.pow(1 - p, cwnd);
+              var isLoss = rand() < pRound;
+              var rttBase = 8 + rand() * state.jitter;
+              var retry = isLoss ? (state.cc === 'bbr' ? 6 : 40) : 0;
+              var rttMs = rttBase + retry;
+              var rtt = rttMs / 1000;
+              rttSum += rttMs;
+              if (isLoss) losses++;
+
+              if (isLoss && state.cc !== 'bbr') {
+                var before = cwnd;
+                wMax = cwnd;
+                cwnd = Math.max(2, cwnd * beta);
+                epoch = r;
+                K = Math.pow((wMax - cwnd) / C, 1 / 3);
+                drops++;
+                if (!maxDrop || before - cwnd > maxDrop.from - maxDrop.to) {
+                  maxDrop = { i: r, from: before, to: cwnd };
+                }
+              }
+
+              if (state.cc === 'bbr') {
+                // 병목 대역폭과 최소 RTT를 학습한 상태를 가정한다. 최소 RTT로 BDP를 잡아
+                // 창을 안정적으로 유지하고, 손실은 혼잡 신호로 쓰지 않는다.
+                var bdp = (LINK_MBPS * 0.95 * 1e6 * minRtt) / (MSS * 8);
+                cwnd = clamp(bdp * 1.1, 12, CAP_CWND);
+              } else if (state.cc === 'reno') {
+                cwnd = Math.min(CAP_CWND, cwnd + 1);
+              } else {
+                var t = r - epoch;
+                var target =
+                  t > K ? C * Math.pow(t - K, 3) + wMax : wMax - C * Math.pow(K - t, 3);
+                cwnd = clamp(Math.max(cwnd, target), 2, CAP_CWND);
+              }
+
+              // BBR은 창을 최소 RTT 기준으로 잡고 그 속도로 내보내므로, 같은 기준으로 환산한다.
+              var offered = (cwnd * MSS * 8) / (state.cc === 'bbr' ? minRtt : rtt) / 1e6;
+              var thr = Math.min(offered, LINK_MBPS) * 0.94;
+              series.push({
+                cwnd: cwnd,
+                thr: thr,
+                loss: isLoss,
+                cut: isLoss && state.cc !== 'bbr',
+                rtt: rttMs
+              });
+            }
+
+            var from = ROUNDS - 120;
+            var sumThr = 0;
+            var sumCwnd = 0;
+            for (var i = from; i < ROUNDS; i++) {
+              sumThr += series[i].thr;
+              sumCwnd += series[i].cwnd;
+            }
+
+            return {
+              series: series,
+              avgThr: sumThr / (ROUNDS - from),
+              avgCwnd: sumCwnd / (ROUNDS - from),
+              losses: losses,
+              drops: drops,
+              maxDrop: maxDrop,
+              avgRtt: rttSum / ROUNDS
+            };
+          }
+
+          function draw(data, yMax, maxDrop) {
+            var W = 480,
+              H = 200,
+              PL = 62,
+              PR = 14,
+              PT = 14,
+              BASE = 158;
+            var plotW = W - PL - PR;
+            var plotH = BASE - PT;
+            var n = data.length;
+
+            chart.textContent = '';
+
+            function x(i) {
+              return PL + (i / (n - 1)) * plotW;
+            }
+            function y(v) {
+              return BASE - (clamp(v, 0, yMax) / yMax) * plotH;
+            }
+
+            [0, yMax / 2, yMax].forEach(function (v) {
+              var t = el('text', { x: PL - 7, y: (y(v) + 4).toFixed(1), 'text-anchor': 'end' });
+              t.textContent = String(Math.round(v));
+              chart.appendChild(t);
+              if (v > 0) {
+                chart.appendChild(
+                  el('line', {
+                    class: 'gridline',
+                    x1: PL,
+                    y1: y(v).toFixed(1),
+                    x2: W - PR,
+                    y2: y(v).toFixed(1)
+                  })
+                );
+              }
+            });
+
+            chart.appendChild(
+              el('line', { class: 'axis', x1: PL, y1: BASE, x2: W - PR, y2: BASE })
+            );
+
+            var d = '';
+            for (var i = 0; i < n; i++) {
+              d += (i === 0 ? 'M' : 'L') + x(i).toFixed(2) + ',' + y(data[i].cwnd).toFixed(2);
+            }
+            chart.appendChild(
+              el('path', {
+                d:
+                  d +
+                  'L' +
+                  x(n - 1).toFixed(2) +
+                  ',' +
+                  BASE +
+                  'L' +
+                  x(0).toFixed(2) +
+                  ',' +
+                  BASE +
+                  'Z',
+                style: 'fill:var(--accent);fill-opacity:0.08;stroke:none'
+              })
+            );
+            chart.appendChild(
+              el('path', {
+                d: d,
+                style:
+                  'fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round'
+              })
+            );
+
+            for (var j = 0; j < n; j++) {
+              if (!data[j].cut) continue;
+              chart.appendChild(
+                el('circle', {
+                  cx: x(j).toFixed(2),
+                  cy: y(data[j].cwnd).toFixed(2),
+                  r: 2.6,
+                  style: 'fill:var(--bad);stroke:var(--bg-elevated);stroke-width:1'
+                })
+              );
+            }
+
+            var xt = el('text', { x: W - PR, y: BASE + 24, 'text-anchor': 'end' });
+            xt.textContent = '왕복 160회';
+            chart.appendChild(xt);
+
+            // 가장 크게 깎인 지점에 짧은 주석
+            if (maxDrop && maxDrop.i > 2) {
+              var ax = x(maxDrop.i);
+              var ay = y(data[maxDrop.i].cwnd);
+              var anno = el('text', {
+                class: 'anno',
+                x: (ax + 6).toFixed(1),
+                y: (ay - 12).toFixed(1),
+                'text-anchor': 'start'
+              });
+              anno.textContent = '손실 → 삭감';
+              chart.appendChild(anno);
+              chart.appendChild(
+                el('line', {
+                  x1: ax.toFixed(1),
+                  y1: (ay - 4).toFixed(1),
+                  x2: ax.toFixed(1),
+                  y2: (ay + 4).toFixed(1),
+                  style: 'stroke:var(--bad);stroke-width:1.4'
+                })
+              );
+            }
+          }
+
+          function render() {
+            var res = simulate();
+            var peak = 0;
+            for (var i = 10; i < res.series.length; i++) {
+              if (res.series[i].cwnd > peak) peak = res.series[i].cwnd;
+            }
+            var yMax = Math.min(CAP_CWND, Math.max(40, Math.ceil((peak * 1.15) / 20) * 20));
+
+            elThr.textContent = fmtRate(res.avgThr);
+            elSub.textContent =
+              '링크 400Mbps의 ' +
+              Math.round((res.avgThr / LINK_MBPS) * 100) +
+              '% · 평균 ' +
+              Math.round(res.avgCwnd) +
+              '패킷';
+            elLossVal.textContent = state.lossPct.toFixed(2) + '%';
+            elJitterVal.textContent = Math.round(state.jitter) + ' ms';
+
+            ccButtons.forEach(function (b) {
+              b.setAttribute('aria-pressed', String(b.getAttribute('data-cc') === state.cc));
+            });
+
+            draw(res.series, yMax, res.maxDrop);
+
+            var note;
+            if (state.cc === 'bbr') {
+              note =
+                'BBR은 손실을 혼잡 신호로 쓰지 않아요. 병목 대역폭을 추정해 그만큼만 보내니 톱니가 무너지지 않아요. 대신 큐를 채우는 경향이 있어요.';
+            } else {
+              note =
+                '왕복 160회 중 손실 ' +
+                res.losses +
+                '번, 그중 ' +
+                res.drops +
+                '번 전송량을 ' +
+                (state.cc === 'reno' ? '절반' : '30%') +
+                ' 깎았어요. 링크는 400Mbps인데 실제로는 ' +
+                fmtRate(res.avgThr) +
+                'Mbps만 나와요.';
+            }
+            note +=
+              ' 화면의 손실률은 802.11 재전송이 가려주고 남은 몫이라, 실제 무선보다 크게 잡혀 있어요.';
+            elNote.innerHTML = note;
+          }
+
+          elLoss.addEventListener('input', function () {
+            state.lossPct = parseFloat(elLoss.value) / 100;
+            render();
+          });
+
+          elJitter.addEventListener('input', function () {
+            state.jitter = parseFloat(elJitter.value);
+            render();
+          });
+
+          ccButtons.forEach(function (b) {
+            b.addEventListener('click', function () {
+              state.cc = b.getAttribute('data-cc');
+              render();
+            });
+          });
+
+          $('b-reroll').addEventListener('click', function () {
+            state.seed = (state.seed * 1664525 + 1013904223) >>> 0;
+            render();
+          });
+
+          elLoss.value = String(Math.round(state.lossPct * 100));
+          elJitter.value = String(state.jitter);
+          render();
+        })();
+      })();
+    </script>
+  </body>
+</html>
