@@ -56,4 +56,13 @@ export const notes: StandaloneNote[] = [
     tags: ['network', 'wifi', 'tcp', 'performance'],
     lang: 'ko',
   },
+  {
+    url: '/notes/ai-usage-evolution/',
+    title: 'AI한테 일 시키는 법은 이렇게 달라졌다 — 프롬프트 한 줄에서 흐름도까지',
+    description:
+      'AI에게 일을 시키는 방식은 프롬프트, 컨텍스트, 바이브 코딩, 스펙, 에이전트, 하네스, 루프, 그래프까지 여덟 번 바뀌었습니다. 어디서 막혀서 다음 걸 배웠는지, 그림 다섯 장과 단계별로 눌러보는 카드로 정리했어요.',
+    pubDate: new Date('2026-11-28'),
+    tags: ['ai', 'workflow', 'agent'],
+    lang: 'ko',
+  },
 ];

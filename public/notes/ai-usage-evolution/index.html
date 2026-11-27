@@ -1,0 +1,2111 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI한테 일 시키는 법은 이렇게 달라졌다 — 프롬프트 한 줄에서 흐름도까지 · ggebi</title>
+    <meta
+      name="description"
+      content="프롬프트, 컨텍스트, 바이브 코딩, 스펙, 에이전트, 하네스, 루프, 그래프. AI에게 일을 시키는 방식이 여덟 번 바뀌었습니다. 어디서 막혀서 다음 걸 배웠는지, 그림 다섯 장과 직접 눌러보는 카드로 정리했습니다."
+    />
+    <link rel="canonical" href="https://ggebi.github.io/notes/ai-usage-evolution/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="author" content="ggebi" />
+    <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0e10" media="(prefers-color-scheme: dark)" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="ggebi" />
+    <meta property="og:title" content="AI한테 일 시키는 법은 이렇게 달라졌다 — 프롬프트 한 줄에서 흐름도까지" />
+    <meta
+      property="og:description"
+      content="처음엔 문장을 깎았고, 다음엔 재료를 깔았고, 지금은 흐름도를 그립니다. 단계마다 멈춘 자리가 있었어요. 여덟 단계로 따라가 봤습니다."
+    />
+    <meta property="og:url" content="https://ggebi.github.io/notes/ai-usage-evolution/" />
+    <meta property="og:image" content="https://ggebi.github.io/og-default.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="article:published_time" content="2026-11-28T00:30:00+09:00" />
+
+    <!-- X / Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AI한테 일 시키는 법은 이렇게 달라졌다" />
+    <meta
+      name="twitter:description"
+      content="문장을 깎던 사람이 흐름도를 그리기까지. 어디서 멘붕이 왔는지 여덟 단계로."
+    />
+    <meta name="twitter:image" content="https://ggebi.github.io/og-default.png" />
+
+    <script>
+      // 첫 페인트 전에 테마를 정한다. (사이트의 다른 페이지와 같은 키를 쓴다)
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.dataset.theme = stored || (prefersDark ? 'dark' : 'light');
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
+
+    <style>
+      /* ================================================================
+         tokens — ggebi.github.io 의 전역 팔레트와 같은 값
+         ================================================================ */
+      :root {
+        color-scheme: light;
+
+        --font-sans:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+          'Apple SD Gothic Neo', 'Pretendard', 'Malgun Gothic', 'Noto Sans KR', 'Noto Sans JP',
+          sans-serif;
+        --font-kr:
+          'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', -apple-system,
+          sans-serif;
+        --font-mono:
+          ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono',
+          'D2Coding', monospace;
+
+        --bg: #fcfcfb;
+        --bg-elevated: #ffffff;
+        --bg-sunken: #f6f6f3;
+        --text: #17181a;
+        --text-muted: #63666d;
+        --text-faint: #8b8e95;
+        --border: #e5e5e1;
+        --border-strong: #d3d3ce;
+        --accent: #1d4ed8;
+        --accent-soft: rgba(29, 78, 216, 0.08);
+        --accent-line: rgba(29, 78, 216, 0.32);
+        --warn: #b45309;
+        --warn-soft: rgba(180, 83, 9, 0.09);
+        --bad: #b91c1c;
+        --bad-soft: rgba(185, 28, 28, 0.08);
+        --ok: #15803d;
+        --ok-soft: rgba(21, 128, 61, 0.09);
+
+        /* 단계 색 — 그림과 카드가 같이 쓴다 */
+        --k1: #2f6fed;
+        --k2: #8b5cf6;
+        --k3: #ec4899;
+        --k4: #e08a12;
+        --k5: #0f9d8f;
+        --k6: #e05252;
+        --k7: #ef7126;
+        --k8: #0ea5c4;
+
+        --measure: 44rem;
+        --radius: 10px;
+        --radius-lg: 16px;
+        --shadow: 0 1px 2px rgba(23, 24, 26, 0.04), 0 8px 24px -16px rgba(23, 24, 26, 0.22);
+      }
+
+      :root[data-theme='dark'] {
+        color-scheme: dark;
+
+        --bg: #0d0e10;
+        --bg-elevated: #141619;
+        --bg-sunken: #101215;
+        --text: #e8e8e5;
+        --text-muted: #a0a3aa;
+        --text-faint: #7c7f86;
+        --border: #23262b;
+        --border-strong: #33373e;
+        --accent: #8ab4ff;
+        --accent-soft: rgba(138, 180, 255, 0.12);
+        --accent-line: rgba(138, 180, 255, 0.4);
+        --warn: #f0b060;
+        --warn-soft: rgba(240, 176, 96, 0.1);
+        --bad: #ff8f8f;
+        --bad-soft: rgba(255, 143, 143, 0.1);
+        --ok: #6ee7a0;
+        --ok-soft: rgba(110, 231, 160, 0.1);
+
+        --k1: #6ea8ff;
+        --k2: #b197fc;
+        --k3: #f472b6;
+        --k4: #fbbf24;
+        --k5: #34d399;
+        --k6: #f87171;
+        --k7: #fb923c;
+        --k8: #22d3ee;
+
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 30px -18px rgba(0, 0, 0, 0.9);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+        scroll-behavior: smooth;
+        scroll-padding-top: 5rem;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        * {
+          animation-duration: 0.001ms !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        line-height: 1.75;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        word-break: keep-all;
+        overflow-wrap: break-word;
+      }
+
+      ::selection {
+        background: var(--accent-soft);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+
+      /* ================================================================
+         chrome
+         ================================================================ */
+      .skip {
+        position: absolute;
+        left: -9999px;
+        top: 0;
+        padding: 0.6rem 1rem;
+        background: var(--text);
+        color: var(--bg);
+        border-radius: 0 0 8px 0;
+        z-index: 20;
+      }
+      .skip:focus {
+        left: 0;
+      }
+
+      .progress {
+        position: fixed;
+        inset: 0 0 auto 0;
+        height: 2px;
+        background: transparent;
+        z-index: 30;
+      }
+      .progress span {
+        display: block;
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--k1), var(--k2), var(--k3), var(--k8));
+        transition: width 80ms linear;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: color-mix(in srgb, var(--bg) 88%, transparent);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-inner {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 0.7rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      .back {
+        font-size: 0.84rem;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+      }
+      .back:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+      .icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.1rem;
+        height: 2.1rem;
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--bg-elevated);
+        color: var(--text-muted);
+        cursor: pointer;
+        transition:
+          color 0.15s,
+          border-color 0.15s,
+          transform 0.15s;
+      }
+      .icon-btn:hover {
+        color: var(--text);
+        border-color: var(--border-strong);
+      }
+      .icon-btn:active {
+        transform: scale(0.94);
+      }
+      .icon-btn svg {
+        width: 1.05rem;
+        height: 1.05rem;
+      }
+      .icon-moon {
+        display: none;
+      }
+      :root[data-theme='dark'] .icon-sun {
+        display: none;
+      }
+      :root[data-theme='dark'] .icon-moon {
+        display: block;
+      }
+
+      /* ================================================================
+         article
+         ================================================================ */
+      .page {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 3.25rem 1.5rem 5rem;
+      }
+
+      .kicker {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 1rem;
+      }
+
+      h1 {
+        font-family: var(--font-kr);
+        font-size: clamp(1.72rem, 5.1vw, 2.4rem);
+        line-height: 1.26;
+        letter-spacing: -0.032em;
+        margin: 0 0 1rem;
+        font-weight: 800;
+      }
+      h1 .sub {
+        display: block;
+        font-size: 0.47em;
+        font-weight: 500;
+        letter-spacing: -0.012em;
+        color: var(--text-muted);
+        margin-top: 0.5rem;
+        line-height: 1.55;
+      }
+
+      .lede {
+        font-size: 1.06rem;
+        color: var(--text-muted);
+        margin: 0 0 1.4rem;
+      }
+      .lede strong {
+        color: var(--text);
+        font-weight: 650;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem 0.9rem;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-faint);
+        padding-bottom: 1.75rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .meta .dot {
+        opacity: 0.5;
+      }
+
+      .tldr {
+        margin: 2rem 0 0;
+        padding: 1.15rem 1.25rem 1.2rem 1.35rem;
+        border: 1px solid var(--border);
+        border-left: 2px solid var(--accent);
+        border-radius: var(--radius);
+        background: var(--bg-elevated);
+        box-shadow: var(--shadow);
+      }
+      .tldr h2 {
+        margin: 0 0 0.6rem;
+        font-size: 0.72rem;
+        font-family: var(--font-mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+        font-weight: 600;
+      }
+      .tldr ul {
+        margin: 0;
+        padding-left: 1.1rem;
+      }
+      .tldr li {
+        margin: 0.35rem 0;
+        font-size: 0.94rem;
+        color: var(--text-muted);
+        line-height: 1.65;
+      }
+      .tldr li strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .prose {
+        margin-top: 2.75rem;
+        font-size: 1.02rem;
+      }
+      .prose > p {
+        margin: 0 0 1.25rem;
+      }
+      .prose h2 {
+        display: flex;
+        align-items: baseline;
+        gap: 0.7rem;
+        font-family: var(--font-kr);
+        font-size: 1.26rem;
+        letter-spacing: -0.022em;
+        line-height: 1.42;
+        margin: 3.1rem 0 1rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+        font-weight: 750;
+      }
+      .prose h2:first-of-type {
+        margin-top: 0.5rem;
+        border-top: none;
+        padding-top: 0;
+      }
+      .prose h2 .num {
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.04em;
+        flex: none;
+        padding-top: 0.24rem;
+      }
+      .prose strong {
+        font-weight: 680;
+      }
+      .prose em {
+        font-style: normal;
+        background: var(--accent-soft);
+        padding: 0 0.22em;
+        border-radius: 3px;
+      }
+      .prose ul {
+        padding-left: 1.15rem;
+        margin: 0 0 1.25rem;
+      }
+      .prose li {
+        margin: 0.4rem 0;
+      }
+      .prose li::marker {
+        color: var(--text-faint);
+      }
+
+      /* 한 문장짜리 펀치라인 */
+      .beat {
+        margin: 1.6rem 0 1.5rem;
+        padding-left: 1rem;
+        border-left: 3px solid var(--accent);
+        font-family: var(--font-kr);
+        font-size: 1.18rem;
+        line-height: 1.5;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+
+      .aside {
+        margin: 1.6rem 0;
+        padding: 0.9rem 1.1rem;
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        font-size: 0.9rem;
+        line-height: 1.68;
+        color: var(--text-muted);
+      }
+      .aside strong {
+        color: var(--text);
+      }
+      .aside.warn {
+        background: var(--warn-soft);
+        border-color: color-mix(in srgb, var(--warn) 28%, transparent);
+      }
+
+      code.inline {
+        font-family: var(--font-mono);
+        font-size: 0.88em;
+        background: var(--bg-sunken);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 0.08em 0.34em;
+        white-space: nowrap;
+      }
+
+      /* ================================================================
+         그림 (인라인 SVG)
+         ================================================================ */
+      figure.fig {
+        margin: 2.05rem 0 2.25rem;
+      }
+      figure.fig .art {
+        padding: 1rem 0.85rem 0.9rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--bg-elevated);
+        box-shadow: var(--shadow);
+      }
+      figure.fig figcaption {
+        margin-top: 0.8rem;
+        padding: 0 0.15rem;
+        font-size: 0.84rem;
+        line-height: 1.64;
+        color: var(--text-muted);
+      }
+      figure.fig figcaption b {
+        color: var(--text);
+        font-weight: 650;
+      }
+
+      .fig-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      figure.fig svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      @media (max-width: 640px) {
+        .fig-scroll svg {
+          min-width: 560px;
+        }
+        .fig-scroll.wide svg {
+          min-width: 660px;
+        }
+      }
+
+      /* SVG 공용 타이포 — 색은 전부 토큰에서 온다 */
+      svg.fg {
+        font-family: var(--font-kr);
+        fill: var(--text);
+      }
+      svg.fg text {
+        paint-order: stroke;
+      }
+      .t-title {
+        font-size: 13.5px;
+        font-weight: 750;
+        letter-spacing: -0.01em;
+        fill: var(--text);
+      }
+      .t-b {
+        font-size: 12px;
+        font-weight: 650;
+        fill: var(--text);
+      }
+      .t {
+        font-size: 11px;
+        fill: var(--text-muted);
+      }
+      .t-xs {
+        font-size: 10px;
+        fill: var(--text-faint);
+      }
+      .t-mono {
+        font-family: var(--font-mono);
+        font-size: 9.8px;
+        fill: var(--text-faint);
+      }
+      .t-mono-b {
+        font-family: var(--font-mono);
+        font-size: 9.8px;
+        font-weight: 650;
+      }
+      .k1 {
+        --c: var(--k1);
+      }
+      .k2 {
+        --c: var(--k2);
+      }
+      .k3 {
+        --c: var(--k3);
+      }
+      .k4 {
+        --c: var(--k4);
+      }
+      .k5 {
+        --c: var(--k5);
+      }
+      .k6 {
+        --c: var(--k6);
+      }
+      .k7 {
+        --c: var(--k7);
+      }
+      .k8 {
+        --c: var(--k8);
+      }
+      .acl {
+        fill: var(--accent);
+      }
+
+      /* ================================================================
+         위젯
+         ================================================================ */
+      .widget {
+        margin: 2.4rem 0 2.6rem;
+        padding: 1.2rem 1.15rem 1.3rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--bg-elevated);
+        box-shadow: var(--shadow);
+      }
+      .widget-head h3 {
+        margin: 0.12rem 0 0.3rem;
+        font-family: var(--font-kr);
+        font-size: 1.1rem;
+        letter-spacing: -0.02em;
+        font-weight: 750;
+      }
+      .widget-kicker {
+        margin: 0;
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .widget-head p {
+        margin: 0;
+        font-size: 0.86rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .widget-body {
+        margin-top: 1rem;
+      }
+
+      .stage-chips {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.4rem;
+        margin-bottom: 0.85rem;
+      }
+      .stage-chips button {
+        display: flex;
+        align-items: center;
+        gap: 0.34rem;
+        padding: 0.42rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg-sunken);
+        color: var(--text-muted);
+        font-family: var(--font-kr);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+        transition:
+          border-color 0.15s,
+          background 0.15s,
+          color 0.15s,
+          transform 0.12s;
+      }
+      .stage-chips button:hover {
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .stage-chips button:active {
+        transform: translateY(1px);
+      }
+      .stage-chips button b {
+        font-family: var(--font-mono);
+        font-size: 0.66rem;
+        font-weight: 600;
+        color: var(--text-faint);
+      }
+      .stage-chips button[data-on='true'] {
+        border-color: var(--accent-line);
+        background: var(--accent-soft);
+        color: var(--text);
+      }
+      .stage-chips button[data-on='true'] b {
+        color: var(--accent);
+      }
+      .stage-chips button:focus-visible,
+      .opt:focus-visible,
+      .icon-btn:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .stage-card {
+        padding: 0.95rem 1rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+      }
+      .stage-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        margin-bottom: 0.8rem;
+      }
+      .stage-num {
+        flex: none;
+        margin-top: 0.1rem;
+        padding: 0.14rem 0.46rem;
+        border: 1px solid var(--accent-line);
+        border-radius: 999px;
+        background: var(--bg-elevated);
+        color: var(--accent);
+        font-family: var(--font-mono);
+        font-size: 0.68rem;
+        font-weight: 650;
+        letter-spacing: 0.03em;
+      }
+      .stage-name {
+        display: block;
+        font-family: var(--font-kr);
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: -0.014em;
+        line-height: 1.4;
+      }
+      .stage-tag {
+        display: block;
+        margin-top: 0.1rem;
+        font-size: 0.79rem;
+        color: var(--text-muted);
+      }
+      .stage-rows {
+        margin: 0;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .stage-rows > div {
+        display: grid;
+        grid-template-columns: 5.4rem 1fr;
+        gap: 0.6rem;
+      }
+      .stage-rows dt {
+        font-family: var(--font-mono);
+        font-size: 0.67rem;
+        line-height: 1.6;
+        color: var(--text-faint);
+        padding-top: 0.14rem;
+      }
+      .stage-rows dd {
+        margin: 0;
+        font-size: 0.86rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .stage-next {
+        margin: 0.85rem 0 0;
+        padding-top: 0.7rem;
+        border-top: 1px dashed var(--border);
+        font-size: 0.82rem;
+        line-height: 1.55;
+        color: var(--text-muted);
+      }
+      .stage-next span:first-child {
+        display: block;
+        margin-bottom: 0.1rem;
+        font-family: var(--font-mono);
+        font-size: 0.64rem;
+        letter-spacing: 0.02em;
+        color: var(--text-faint);
+      }
+
+      /* 자가진단 */
+      .qblock {
+        padding: 0.85rem 0 0.9rem;
+        border-top: 1px dashed var(--border);
+      }
+      .qblock:first-child {
+        border-top: 0;
+        padding-top: 0.1rem;
+      }
+      .qtext {
+        display: flex;
+        gap: 0.45rem;
+        margin: 0 0 0.5rem;
+        font-size: 0.9rem;
+        font-weight: 650;
+        line-height: 1.5;
+      }
+      .qtext .qn {
+        flex: none;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--text-faint);
+        padding-top: 0.18rem;
+      }
+      .opts {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .opt {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.44rem 0.7rem;
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        background: var(--bg-sunken);
+        color: var(--text-muted);
+        font-family: var(--font-kr);
+        font-size: 0.83rem;
+        line-height: 1.5;
+        cursor: pointer;
+        transition:
+          border-color 0.15s,
+          background 0.15s,
+          color 0.15s;
+      }
+      .opt:hover {
+        border-color: var(--border-strong);
+        color: var(--text);
+      }
+      .opt[aria-pressed='true'] {
+        border-color: var(--accent-line);
+        background: var(--accent-soft);
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .levelbox {
+        margin-top: 1rem;
+        padding: 0.9rem 1rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-sunken);
+      }
+      .leveltop {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .levelnum {
+        flex: none;
+        width: 3.1rem;
+        height: 3.1rem;
+        display: grid;
+        place-items: center;
+        border-radius: 12px;
+        background: linear-gradient(140deg, var(--k1), var(--k2));
+        color: #fff;
+        font-family: var(--font-mono);
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      :root[data-theme='dark'] .levelnum {
+        color: #0b1220;
+      }
+      .levelname {
+        display: block;
+        font-family: var(--font-kr);
+        font-size: 0.98rem;
+        font-weight: 700;
+        letter-spacing: -0.014em;
+      }
+      .leveltag {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+      }
+      .leveldesc {
+        margin: 0.7rem 0 0;
+        font-size: 0.86rem;
+        line-height: 1.65;
+        color: var(--text-muted);
+      }
+      .levelnext {
+        margin: 0.45rem 0 0;
+        font-size: 0.82rem;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+      .levelnext b {
+        color: var(--text);
+        font-weight: 650;
+      }
+      .meter {
+        display: flex;
+        gap: 3px;
+        margin-top: 0.7rem;
+      }
+      .meter i {
+        flex: 1;
+        height: 5px;
+        border-radius: 3px;
+        background: var(--border);
+        transition: background 0.2s;
+      }
+      .meter i.on {
+        background: linear-gradient(90deg, var(--k1), var(--k2));
+      }
+
+      /* ================================================================
+         footer
+         ================================================================ */
+      .foot {
+        border-top: 1px solid var(--border);
+        background: var(--bg-sunken);
+      }
+      .foot-inner {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        font-family: var(--font-mono);
+        font-size: 0.78rem;
+        color: var(--text-faint);
+      }
+      .foot-inner nav {
+        display: flex;
+        gap: 1rem;
+      }
+      .foot-inner a {
+        color: var(--text-muted);
+      }
+      .foot-inner a:hover {
+        color: var(--text);
+        text-decoration: none;
+      }
+
+      @media (max-width: 560px) {
+        .page {
+          padding: 2.25rem 1.1rem 4rem;
+        }
+        .stage-chips {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .stage-rows > div {
+          grid-template-columns: 4.6rem 1fr;
+        }
+        .topbar-inner {
+          padding: 0.6rem 1.1rem;
+        }
+        .foot-inner {
+          padding: 1.25rem 1.1rem;
+        }
+      }
+    </style>
+
+    <!-- Cloudflare Web Analytics -->
+    <script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "bd9f28533afa40bf9f8054c59e776b78"}'></script>
+    <!-- End Cloudflare Web Analytics -->
+  </head>
+
+  <body>
+    <a class="skip" href="#content">본문으로 건너뛰기</a>
+    <div class="progress" aria-hidden="true"><span id="progress-bar"></span></div>
+
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="back" href="/">← ggebi.github.io</a>
+        <button id="theme-toggle" class="icon-btn" type="button" aria-label="다크 모드로 전환">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.2"></circle>
+            <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"></path>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1Z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="content">
+      <article class="page">
+        <header>
+          <p class="kicker">engineering note · ai workflow</p>
+          <h1>
+            AI한테 일 시키는 법은<br />이렇게 달라졌다
+            <span class="sub">프롬프트 한 줄에서 흐름도까지 — 그 사이에 있었던 여덟 번의 깨달음</span>
+          </h1>
+          <p class="lede">
+            처음 AI를 켰을 때를 떠올려 보세요. 하얀 입력창, 깜빡이는 커서. 뭐라고 써야 답이 잘 나올지
+            한참 고민하다가 겨우 한 줄 적고 엔터를 눌렀죠. 그런데 지금은 어떤가요. 폴더를 통째로 읽히고,
+            계획서를 먼저 받고, 테스트가 통과할 때까지 알아서 돌게 시킵니다. <strong>그 사이에 사람이 배운 건
+            딱 여덟 가지</strong>였습니다.
+          </p>
+          <div class="meta">
+            <span>2026-11-28</span>
+            <span class="dot">·</span>
+            <span>읽는 시간 6분</span>
+            <span class="dot">·</span>
+            <span>ggebi</span>
+          </div>
+        </header>
+
+        <div class="tldr">
+          <h2>세 줄 요약</h2>
+          <ul>
+            <li>
+              AI에게 일 시키는 법은 <strong>말을 잘 고치는 일</strong>에서
+              <strong>일이 굴러갈 판을 짜는 일</strong>로 옮겨갔습니다.
+            </li>
+            <li>
+              단계마다 필요했던 건 더 똑똑한 모델이 아니라 <strong>확인할 수 있는 무언가</strong>였어요.
+              규칙, 계획, 권한, 테스트.
+            </li>
+            <li>
+              아래 카드를 누르면 단계별로 <strong>내가 하는 일 / AI가 하는 일 / 멘붕 포인트</strong>가
+              바뀝니다. 지금 어디쯤인지 찾아보세요.
+            </li>
+          </ul>
+        </div>
+
+        <div class="prose">
+          <p>
+            계단이라고 생각하면 괜히 순서를 외워야 할 것 같죠. 사실은 계단이 아니라
+            <strong>멈춘 자리</strong>입니다. 여덟 군데에서 다들 비슷하게 막혔고, 막힌 김에 다음 걸
+            배웠어요. 그러니까 지금 어디쯤인지 알면, 다음에 뭘 배우면 되는지도 같이 보입니다.
+          </p>
+
+          <p>
+            아래로 내려가다 보면 &ldquo;아, 나 여기서 멈췄네&rdquo; 하는 자리가 한 번은 나옵니다. 그 자리가
+            다음에 뭘 읽어야 하는지 알려주는 표지판이에요.
+          </p>
+
+          <figure class="fig">
+            <div class="art">
+              <div class="fig-scroll wide">
+                <svg class="fg" viewBox="0 0 720 384" role="img" aria-labelledby="fig1t">
+                  <title id="fig1t">
+                    프롬프트에서 그래프까지 여덟 단계를 아이콘 카드로 이어 붙인 인포그래픽
+                  </title>
+                  <defs>
+                    <linearGradient id="f1axis" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0" stop-color="var(--k1)" />
+                      <stop offset="0.45" stop-color="var(--k2)" />
+                      <stop offset="0.8" stop-color="var(--k3)" />
+                      <stop offset="1" stop-color="var(--k8)" />
+                    </linearGradient>
+                  </defs>
+
+                  <text class="t-xs" x="15" y="11">AI에게 잘 묻는 일</text>
+                  <text class="t-xs" x="705" y="11" text-anchor="end">AI가 일하게 하는 일</text>
+                  <rect x="15" y="19" width="690" height="5" rx="2.5" fill="url(#f1axis)" opacity="0.9" />
+
+                  <!-- 1 -->
+                  <g class="k1">
+                    <rect x="15" y="64" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="27" y="76" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(32,81)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4.5 5.5h15a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H10l-4.5 3.4v-3.4H4.5a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z" />
+                      <path d="M8 9.5h8M8 12.5h5" />
+                    </g>
+                    <text class="t-mono" x="153" y="87" text-anchor="end" fill="var(--c)">01</text>
+                    <text class="t-title" x="27" y="134">프롬프트</text>
+                    <text class="t-xs" x="27" y="153" fill="var(--text-muted)">질문을 깎는다</text>
+                    <text class="t-xs" x="27" y="168" fill="var(--text-muted)">역할 · 예시 · 형식</text>
+                  </g>
+                  <path d="M165 124H189" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M195 124l-7-3.6v7.2z" fill="var(--border-strong)" />
+
+                  <!-- 2 -->
+                  <g class="k2">
+                    <rect x="195" y="64" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="207" y="76" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(212,81)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="7" y="3" width="12" height="14" rx="2" />
+                      <path d="M5 7v12a2 2 0 0 0 2 2h9" />
+                      <path d="M10 7.5h6M10 11h6" />
+                    </g>
+                    <text class="t-mono" x="333" y="87" text-anchor="end" fill="var(--c)">02</text>
+                    <text class="t-title" x="207" y="134">컨텍스트</text>
+                    <text class="t-xs" x="207" y="153" fill="var(--text-muted)">재료를 깔아둔다</text>
+                    <text class="t-xs" x="207" y="168" fill="var(--text-muted)">CLAUDE.md · RAG</text>
+                  </g>
+                  <path d="M345 124H369" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M375 124l-7-3.6v7.2z" fill="var(--border-strong)" />
+
+                  <!-- 3 -->
+                  <g class="k3">
+                    <rect x="375" y="64" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="387" y="76" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(392,81)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9 7 5 12l4 5M15 7l4 5-4 5M13.4 9.2l-2.8 5.6" />
+                    </g>
+                    <text class="t-mono" x="513" y="87" text-anchor="end" fill="var(--c)">03</text>
+                    <text class="t-title" x="387" y="134">바이브 코딩</text>
+                    <text class="t-xs" x="387" y="153" fill="var(--text-muted)">느낌으로 뽑는다</text>
+                    <text class="t-xs" x="387" y="168" fill="var(--text-muted)">코드 안 읽고 만들기</text>
+                  </g>
+                  <path d="M525 124H549" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M555 124l-7-3.6v7.2z" fill="var(--border-strong)" />
+
+                  <!-- 4 -->
+                  <g class="k4">
+                    <rect x="555" y="64" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="567" y="76" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(572,81)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3.5" y="4.5" width="13" height="15" rx="2" />
+                      <path d="M3.5 9h13M7.5 4.5v15" />
+                      <path d="M19 11v6a3 3 0 0 1-3 3h-1" />
+                    </g>
+                    <text class="t-mono" x="693" y="87" text-anchor="end" fill="var(--c)">04</text>
+                    <text class="t-title" x="567" y="134">스펙 · MCP</text>
+                    <text class="t-xs" x="567" y="153" fill="var(--text-muted)">설계도를 먼저</text>
+                    <text class="t-xs" x="567" y="168" fill="var(--text-muted)">Plan · Spec · 도구</text>
+                  </g>
+
+                  <path d="M630 186v20" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M630 214l-3.6-7h7.2z" fill="var(--border-strong)" />
+
+                  <!-- 5 -->
+                  <g class="k5">
+                    <rect x="555" y="216" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="567" y="228" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(572,233)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+                      <path d="M7 10l3 3-3 3M12.5 16h5" />
+                    </g>
+                    <text class="t-mono" x="693" y="239" text-anchor="end" fill="var(--c)">05</text>
+                    <text class="t-title" x="567" y="286">에이전트</text>
+                    <text class="t-xs" x="567" y="305" fill="var(--text-muted)">손발이 생긴다</text>
+                    <text class="t-xs" x="567" y="320" fill="var(--text-muted)">파일 · 터미널</text>
+                  </g>
+                  <path d="M555 276H531" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M525 276l7-3.6v7.2z" fill="var(--border-strong)" />
+
+                  <!-- 6 -->
+                  <g class="k6">
+                    <rect x="375" y="216" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="387" y="228" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(392,233)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 3.2 19 6v5.6c0 4.3-2.9 7.3-7 8.9-4.1-1.6-7-4.6-7-8.9V6z" />
+                      <path d="M9 12l2.2 2.2L15.5 10" />
+                    </g>
+                    <text class="t-mono" x="513" y="239" text-anchor="end" fill="var(--c)">06</text>
+                    <text class="t-title" x="387" y="286">하네스</text>
+                    <text class="t-xs" x="387" y="305" fill="var(--text-muted)">자유에 규칙을</text>
+                    <text class="t-xs" x="387" y="320" fill="var(--text-muted)">권한 · 메모리 · 검증</text>
+                  </g>
+                  <path d="M375 276H351" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M345 276l7-3.6v7.2z" fill="var(--border-strong)" />
+
+                  <!-- 7 -->
+                  <g class="k7">
+                    <rect x="195" y="216" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="207" y="228" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(212,233)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+                      <path d="M20.5 4.2V8h-3.8" />
+                    </g>
+                    <text class="t-mono" x="333" y="239" text-anchor="end" fill="var(--c)">07</text>
+                    <text class="t-title" x="207" y="286">루프</text>
+                    <text class="t-xs" x="207" y="305" fill="var(--text-muted)">될 때까지 반복</text>
+                    <text class="t-xs" x="207" y="320" fill="var(--text-muted)">실행 → 확인 → 수정</text>
+                  </g>
+                  <path d="M195 276H171" stroke="var(--border-strong)" stroke-width="1.6" />
+                  <path d="M165 276l7-3.6v7.2z" fill="var(--border-strong)" />
+
+                  <!-- 8 -->
+                  <g class="k8">
+                    <rect x="15" y="216" width="150" height="120" rx="14" fill="var(--c)" fill-opacity="0.07" stroke="var(--c)" stroke-opacity="0.3" />
+                    <rect x="27" y="228" width="34" height="34" rx="10" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.4" />
+                    <g transform="translate(32,233)" fill="none" stroke="var(--c)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="6" cy="6" r="2.4" />
+                      <circle cx="18" cy="6" r="2.4" />
+                      <circle cx="12" cy="18" r="2.4" />
+                      <path d="M8.4 6h7.2M7.2 8l3.6 8M16.8 8l-3.6 8" />
+                    </g>
+                    <text class="t-mono" x="153" y="239" text-anchor="end" fill="var(--c)">08</text>
+                    <text class="t-title" x="27" y="286">그래프</text>
+                    <text class="t-xs" x="27" y="305" fill="var(--text-muted)">갈라지고 합쳐진다</text>
+                    <text class="t-xs" x="27" y="320" fill="var(--text-muted)">분기 · 병렬 · 승인</text>
+                  </g>
+
+                  <text class="t-xs" x="360" y="366" text-anchor="middle">
+                    화살표 방향이 곧 &ldquo;다음에 배운 것&rdquo;입니다. 08까지 꼭 계단처럼 밟아야 하는 건 아니에요.
+                  </text>
+                </svg>
+              </div>
+            </div>
+            <figcaption>
+              <b>그림 1 — 여덟 단계 한눈에.</b> 위 줄은 아직 <em>내가 다 챙기는</em> 구간, 아래 줄은
+              <em>AI가 굴러가고 내가 승인하는</em> 구간입니다. 04에서 방향이 한 번 꺾이죠. 그 전까지 AI는
+              답만 했고, 그 뒤로는 손발이 생깁니다.
+            </figcaption>
+          </figure>
+
+          <h2 id="s1"><span class="num">01</span>한 줄을 깎던 시절 — 프롬프트</h2>
+
+          <p>
+            누구나 여기서 시작합니다. &ldquo;코드 짜줘&rdquo; → &ldquo;음…&rdquo; → &ldquo;너는 10년 차 코드
+            리뷰어야. 버그만 짚고, 심각도 순으로 세 줄로.&rdquo; → &ldquo;오.&rdquo;
+          </p>
+
+          <p>
+            같은 모델인데 답이 달라지는 순간, 이게 재밌어서 다들 문장을 깎기 시작해요. 예시를 붙이고, 형식을
+            정하고, 하지 말아야 할 것까지 적어 넣고. 어느새 200자짜리 주문서를 쓰고 있습니다. 솔직히 그
+            시절엔 이게 AI 잘 쓰는 법의 전부인 줄 알았죠.
+          </p>
+
+          <p>
+            근데 주문서가 길어진다고 답이 좋아지는 건 아니에요. 조건을 스무 개 붙이면 모델은 그중 서너 개를
+            잊습니다. 결국 남는 건 두세 줄이에요. 무엇을, 어떤 모양으로, 하지 말 것. 이 셋만 남겨도 절반은
+            갑니다.
+          </p>
+
+          <figure class="fig">
+            <div class="art">
+              <div class="fig-scroll">
+                <svg class="fg" viewBox="0 0 720 340" role="img" aria-labelledby="fig2t">
+                  <title id="fig2t">
+                    같은 모델에 한 줄만 던진 경우와 역할·제약·형식을 붙인 경우의 답을 나란히 비교한 채팅 목업
+                  </title>
+
+                  <!-- A -->
+                  <g>
+                    <rect x="8" y="40" width="344" height="272" rx="14" fill="var(--bg-sunken)" stroke="var(--border-strong)" stroke-width="1.2" />
+                    <path d="M8 54a14 14 0 0 1 14-14h316a14 14 0 0 1 14 14v24H8z" fill="var(--bad)" fill-opacity="0.07" />
+                    <line x1="8" y1="78" x2="352" y2="78" stroke="var(--border)" stroke-width="1" />
+                    <circle cx="24" cy="59" r="3.2" fill="var(--border-strong)" />
+                    <circle cx="35" cy="59" r="3.2" fill="var(--border-strong)" />
+                    <circle cx="46" cy="59" r="3.2" fill="var(--border-strong)" />
+                    <text class="t-b" x="60" y="63" fill="var(--text-muted)">A · 한 줄만 던졌을 때</text>
+
+                    <rect x="24" y="94" width="214" height="34" rx="12" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1.1" />
+                    <text class="t" x="38" y="116" fill="var(--text)">로그인 화면 코드 좀 짜줘</text>
+
+                    <rect x="24" y="140" width="300" height="80" rx="12" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1.1" />
+                    <text class="t" x="38" y="164">네! 아래는 예시 코드입니다.</text>
+                    <text class="t" x="38" y="182">프로젝트 구조에 맞게 수정해서</text>
+                    <text class="t" x="38" y="200">사용하시면 됩니다 :)</text>
+
+                    <rect x="24" y="236" width="180" height="34" rx="9" fill="var(--bad)" fill-opacity="0.07" stroke="var(--bad)" stroke-opacity="0.55" stroke-width="1.2" stroke-dasharray="5 4" />
+                    <text class="t-b" x="114" y="258" text-anchor="middle" fill="var(--bad)">그대로는 못 씀</text>
+                    <text class="t-xs" x="216" y="258">우리 코드는 안 물어봤으니까</text>
+                    <text class="t-xs" x="24" y="292" fill="var(--text-faint)">결국 손으로 다시 고치게 됩니다</text>
+                  </g>
+
+                  <!-- B -->
+                  <g>
+                    <rect x="368" y="40" width="344" height="272" rx="14" fill="var(--bg-sunken)" stroke="var(--k5)" stroke-opacity="0.45" stroke-width="1.2" />
+                    <path d="M368 54a14 14 0 0 1 14-14h316a14 14 0 0 1 14 14v24H368z" fill="var(--k5)" fill-opacity="0.09" />
+                    <line x1="368" y1="78" x2="712" y2="78" stroke="var(--border)" stroke-width="1" />
+                    <circle cx="384" cy="59" r="3.2" fill="var(--border-strong)" />
+                    <circle cx="395" cy="59" r="3.2" fill="var(--border-strong)" />
+                    <circle cx="406" cy="59" r="3.2" fill="var(--border-strong)" />
+                    <text class="t-b" x="420" y="63" fill="var(--text-muted)">B · 역할과 제약을 붙였을 때</text>
+
+                    <rect x="384" y="94" width="300" height="48" rx="12" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1.1" />
+                    <text class="t" x="398" y="114" fill="var(--text)">너는 10년 차 프론트야. React + TS에</text>
+                    <text class="t" x="398" y="132" fill="var(--text)">zustand, react-hook-form 쓴다.</text>
+
+                    <rect x="384" y="150" width="250" height="34" rx="12" fill="var(--bg-elevated)" stroke="var(--border)" stroke-width="1.1" />
+                    <text class="t" x="398" y="172" fill="var(--text)">로그인 폼만, 에러는 한국어 3줄.</text>
+
+                    <rect x="384" y="192" width="300" height="70" rx="12" fill="var(--bg-elevated)" stroke="var(--k5)" stroke-opacity="0.4" stroke-width="1.1" />
+                    <text class="t-mono-b" x="398" y="214" fill="var(--text)">LoginForm.tsx · 42줄</text>
+                    <text class="t-mono" x="398" y="232" fill="var(--k5)">✓ 타입 에러 0</text>
+                    <text class="t-mono" x="398" y="249" fill="var(--k5)">✓ 기존 스타일 그대로</text>
+
+                    <rect x="384" y="272" width="150" height="30" rx="9" fill="var(--k5)" fill-opacity="0.12" stroke="var(--k5)" stroke-opacity="0.5" stroke-width="1.2" />
+                    <text class="t-b" x="459" y="292" text-anchor="middle" fill="var(--k5)">바로 붙여넣기</text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+            <figcaption>
+              <b>그림 2 — 같은 모델, 같은 날.</b> 왼쪽은 한 줄, 오른쪽은 역할과 제약을 붙인 질문입니다. 답이
+              달라진 건 솜씨가 아니라 <em>질문에 실린 정보</em>예요. 그리고 이 차이가 다음 단계의 씨앗이
+              됩니다.
+            </figcaption>
+          </figure>
+
+          <p>
+            그런데 여기서 벽이 옵니다. 아무리 잘 물어도 AI는 내 코드를 모르고, 어제 한 말도 잊어요. 정성껏
+            쓴 주문서 한 장으로 한 끼는 잘 먹을 수 있어도, 주방을 통째로 맡길 수는 없는 거죠.
+          </p>
+
+          <p>
+            그래서 사람들이 질문 옆에 파일을 붙이기 시작합니다. 문장을 더 깎는 대신, AI가 볼 재료를
+            늘리는 쪽으로요.
+          </p>
+
+          <h2 id="s2"><span class="num">02</span>문장을 고치던 손이 재료로 — 컨텍스트</h2>
+
+          <p>
+            두 번째 깨달음은 좀 허무합니다. 문장을 깎던 시간을, 재료를 깔아두는 데 쓰기 시작해요. 저장소 맨
+            위에 <code class="inline">CLAUDE.md</code> 하나, <code class="inline">.cursorrules</code> 하나.
+            &ldquo;이 프로젝트는 이렇게 생겼고, 이건 하지 마&rdquo;를 적어두면 AI가 일을 시작할 때마다 알아서
+            읽습니다. 매번 같은 설명을 타이핑할 필요가 없어지는 거죠.
+          </p>
+
+          <p>
+            실제로 들어가는 건 별게 아니에요. &ldquo;테스트는 vitest로 돌린다&rdquo;, &ldquo;커밋 메시지는
+            영어로&rdquo;, &ldquo;이 폴더는 건드리지 않는다&rdquo;. 거창한 설계 문서가 아니라, 매번 입에
+            올리던 잔소리를 파일로 옮긴 것뿐입니다. 그런데 이게 생각보다 큰 차이를 만듭니다.
+          </p>
+
+          <p>
+            물론 재료를 마구 넣으면 안 됩니다. 창고를 통째로 밀어 넣으면 정작 필요한 한 줄이 묻히고, 대화가
+            길어지면 앞쪽부터 잘려 나가요. 그래서 다음 고민이 생깁니다. 무엇을, 얼마나, 어떤 순서로 넣을까.
+          </p>
+
+          <p>
+            검색해서 넣는 방식(RAG)도 같은 발상이에요. 두꺼운 매뉴얼을 통째로 외우게 하는 대신, 질문에
+            해당하는 세 페이지만 펼쳐줍니다. 요리를 시킬 때 냉장고 문을 열어주는 쪽에 가깝죠.
+          </p>
+
+          <p class="beat">말발보다 재료가 세다.</p>
+
+          <p>
+            여기서 질문이 짧아지고, 답이 내 것에 맞아지기 시작합니다. &ldquo;그 화면 좀 예쁘게&rdquo;라는
+            말이 통하는 건 AI가 이미 우리 파일과 규칙을 읽었기 때문이에요. 재료가 없으면 똑같은 말이 헛소리가
+            됩니다.
+          </p>
+
+          <p>
+            반대로 재료가 부실하면, 아무리 좋은 모델도 남의 집 이야기를 합니다. 그럴듯한데 우리 것에는 하나도
+            안 맞는 답. 그게 제일 무섭습니다. 틀린 답은 고치기라도 하지.
+          </p>
+
+          <h2 id="s3"><span class="num">03</span>30분 만에 화면이 뜨던 날 — 바이브 코딩</h2>
+
+          <p>
+            재료가 깔리니까 이번엔 코드를 안 읽기 시작합니다. &ldquo;로그인 화면 만들어줘.&rdquo; 30분 뒤
+            화면이 떠요. 진짜 마법입니다. 이름도 붙었죠. 바이브 코딩.
+          </p>
+
+          <p>
+            빈 폴더에서 시작해서 저녁엔 링크를 보내고 있는 자신을 발견합니다. 옆에서 보면 개발자 같지도
+            않아요. 이 맛에 다들 합니다.
+          </p>
+
+          <p>여기까진 천국이에요. 근데 파일이 20개를 넘어가는 순간, 딱 무슨 일이 벌어질까요?</p>
+
+          <figure class="fig">
+            <div class="art">
+              <div class="fig-scroll">
+<svg class="fg" viewBox="0 0 720 368" role="img" aria-labelledby="fig3t">
+                  <title id="fig3t">
+                    바이브 코딩 초반에는 생산성이 치솟다가 파일이 늘어나면 꺾이는 곡선과, 그 구간의 대화 말풍선
+                  </title>
+                  <defs>
+                    <linearGradient id="f3rise" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="var(--k5)" stop-opacity="0.28" />
+                      <stop offset="1" stop-color="var(--k5)" stop-opacity="0.02" />
+                    </linearGradient>
+                    <linearGradient id="f3fall" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="var(--k6)" stop-opacity="0.26" />
+                      <stop offset="1" stop-color="var(--k6)" stop-opacity="0.03" />
+                    </linearGradient>
+                  </defs>
+
+                  <text class="t-xs" x="70" y="72" fill="var(--text-muted)">체감 생산성</text>
+                  <line x1="70" y1="84" x2="70" y2="300" stroke="var(--border-strong)" stroke-width="1.4" />
+                  <line x1="70" y1="300" x2="676" y2="300" stroke="var(--border-strong)" stroke-width="1.4" />
+
+                  <path d="M70 296 C120 284 150 226 200 168 C240 120 280 100 330 96 L356 96 L356 300 L70 300 Z" fill="url(#f3rise)" />
+                  <path d="M356 96 C366 124 356 150 376 176 C390 196 404 196 416 214 C428 232 418 244 436 254 C448 260 458 250 472 262 C486 274 480 288 502 290 C520 292 534 282 556 288 C590 296 620 296 664 300 L356 300 Z" fill="url(#f3fall)" />
+
+                  <path d="M70 296 C120 284 150 226 200 168 C240 120 280 100 330 96 L356 96 C366 124 356 150 376 176 C390 196 404 196 416 214 C428 232 418 244 436 254 C448 260 458 250 472 262 C486 274 480 288 502 290 C520 292 534 282 556 288 C590 296 620 296 664 300" fill="none" stroke="var(--text)" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round" />
+
+                  <line x1="356" y1="96" x2="356" y2="300" stroke="var(--k6)" stroke-width="1.4" stroke-dasharray="5 5" opacity="0.7" />
+                  <circle cx="330" cy="96" r="4.6" fill="var(--k5)" />
+                  <circle cx="330" cy="96" r="8.6" fill="none" stroke="var(--k5)" stroke-opacity="0.3" stroke-width="1.4" />
+
+                  <text class="t-xs" x="356" y="320" text-anchor="middle" fill="var(--text-muted)">파일 20개쯤</text>
+                  <text class="t-xs" x="356" y="340" text-anchor="middle" fill="var(--k6)">여기서부터는 하나 고치면 둘 터짐</text>
+                  <text class="t-xs" x="672" y="320" text-anchor="end" fill="var(--text-muted)">코드량 →</text>
+
+                  <g>
+                    <rect x="127" y="139" width="12" height="12" rx="2" transform="rotate(45 133 145)" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                    <rect x="112" y="112" width="146" height="34" rx="11" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                    <text class="t-b" x="185" y="134" text-anchor="middle">이거 그냥 되는데?</text>
+                  </g>
+
+                  <g>
+                    <rect x="420" y="191" width="12" height="12" rx="2" transform="rotate(45 426 197)" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                    <rect x="404" y="150" width="186" height="48" rx="11" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                    <text class="t" x="418" y="170" fill="var(--text)">어제 정한 규칙을</text>
+                    <text class="t" x="418" y="188" fill="var(--text)">오늘은 모른다</text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+            <figcaption>
+              <b>그림 3 — 천국은 파일 20개까지.</b> 앞 구간에서 사람이 하는 일은 &ldquo;설명&rdquo;뿐이라
+              빠릅니다. 코드량이 늘면 기억할 곳도, 확인할 기준도 없어서 곡선이 꺾여요. 모델이 멍청해진 게
+              아닙니다.
+            </figcaption>
+          </figure>
+
+          <p>
+            하나 고치면 둘이 터집니다. 어제 정한 규칙을 오늘은 모르고, 같은 버그를 세 번 고치는데 세 번 다
+            다른 데를 고쳐요. &ldquo;아까 그거 왜 되돌렸어?&rdquo; &ldquo;시킨 거랑 다르게 만들었는데?&rdquo;
+            혹시 이런 대화, 해보신 적 있으시죠?
+          </p>
+
+          <p>
+            원인은 간단합니다. 기억할 곳이 없어서예요. 대화창 하나가 전부였으니까. 결정은 어디에도 안 적혀
+            있고, 확인은 눈으로만 하죠.
+          </p>
+
+          <p>
+            주말에 밤새 돌려놓고 아침에 열어보면, 어제 되던 화면이 안 뜹니다. 커밋은 스물세 개 쌓여 있고,
+            어느 게 원인인지는 아무도 모릅니다. 그때부터 사람들이 조금씩 무서워하기 시작해요.
+          </p>
+
+          <p>
+            이때 대부분 모델을 의심합니다. &ldquo;AI가 멍청해졌나?&rdquo; 더 좋은 걸로 바꿔보죠. 그런데
+            바꿔도 똑같습니다. 기억할 곳이 없는 건 모델 잘못이 아니니까요.
+          </p>
+
+          <h2 id="s4"><span class="num">04</span>던지기 전에 설계도부터 — 스펙과 MCP</h2>
+
+          <p>
+            여기서 다들 같은 결론에 도착합니다. 대충 던지면 대충 망가진다. 그럼 던지기 전에 설계도를 그리자.
+          </p>
+
+          <p>
+            &ldquo;바로 코드 짜지 마. 먼저 계획부터. 어떤 파일을 건드릴지, 어떤 순서로, 뭘 확인할지.&rdquo;
+            이 한 줄이 붙는 순간 결과물의 수명이 달라져요. 계획서를 먼저 받아 읽고, 이상한 데만 짚어서 다시
+            보냅니다. 대화의 중심이 &lsquo;코드 생성&rsquo;에서 &lsquo;설계 리뷰&rsquo;로 옮겨가는 거죠.
+          </p>
+
+          <p>계획서는 길지 않습니다. 좋은 계획서는 이 세 줄이면 끝나요.</p>
+          <ul>
+            <li>건드릴 파일 세 개, 그리고 각각을 왜 건드리는지</li>
+            <li>순서 — 스키마, API, 화면처럼 줄 세우기</li>
+            <li>끝났다고 판단할 기준 — 이 테스트 세 개가 통과하면 끝</li>
+          </ul>
+          <p>
+            이걸 3분 읽는 것과, 30분 뒤에 코드 더미를 받아보는 것 중에 뭘 고르겠어요?
+          </p>
+
+          <p>
+            같은 시기에 손발도 생겼습니다. MCP라는 표준 덕분에 AI가 내 파일, DB, 이슈 트래커, 브라우저를
+            같은 방식으로 붙잡게 됐어요. 도구마다 새 연결을 만들던 일이 사라진 겁니다.
+          </p>
+
+          <p>
+            예전엔 도구 하나 붙일 때마다 그 서비스 전용 접착제를 발랐어요. 지금은 규격이 같으니 꽂으면
+            됩니다. (비유는 여기까지만 하죠.)
+          </p>
+
+          <h2 id="s5"><span class="num">05</span>AI가 터미널을 잡는 순간 — 에이전트</h2>
+
+          <p>
+            이제 AI는 답만 하지 않아요. 파일을 열고, 명령을 치고, 에러 메시지를 읽고, 다시 고칩니다. 사람은
+            &ldquo;왜 실패했지&rdquo;를 묻는 대신 로그가 올라오는 걸 지켜봅니다.
+          </p>
+
+          <p>
+            처음으로 &lsquo;일을 맡겼다&rsquo;는 느낌이 오는 지점입니다. DB 컬럼 이름을 바꾸라고 하면,
+            모델을 고치고, 마이그레이션을 쓰고, 테스트를 돌리고, 깨진 데를 찾아 다시 고칩니다. 중간에 나를
+            부르지 않아요.
+          </p>
+
+          <p>
+            잘 될 때는 조용합니다. 그래서 잘 되는 줄 모르고 있다가, 안 될 때만 알림을 받습니다.
+          </p>
+
+          <p>
+            여기서부터 좀 무섭습니다. 잘 풀리면 두 시간짜리 일이 15분에 끝나고, 어긋나면 내가 안 보는 사이에
+            파일 스무 개를 고쳐놨어요. 되돌리는 비용도 그만큼 커집니다. 신입에게 결재권을 준 기분이랄까요.
+          </p>
+
+          <h2 id="s6"><span class="num">06</span>자유에 규칙을 씌우는 일 — 하네스</h2>
+
+          <p>
+            그래서 똑똑한 에이전트를 그냥 풀어놓지 않습니다. 권한을 나누고, 기억을 붙이고, 확인 절차를
+            겁니다. 이 틀을 하네스라고 불러요. 거창하게 들리지만 요지는 하나예요.
+          </p>
+
+          <p class="beat">AI의 자유를 조금 줄이고, 대신 결과를 믿을 수 있게 만든다.</p>
+
+          <figure class="fig">
+            <div class="art">
+              <div class="fig-scroll wide" data-center>
+<svg class="fg" viewBox="0 0 720 432" role="img" aria-labelledby="fig4t">
+                  <title id="fig4t">
+                    LLM 코어를 도구, 메모리, 권한 가드레일, 자동 검증 네 모듈이 감싸는 하네스 구조도
+                  </title>
+                  <defs>
+                    <linearGradient id="f4core" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stop-color="var(--k2)" />
+                      <stop offset="1" stop-color="var(--k1)" />
+                    </linearGradient>
+                    <radialGradient id="f4glow" cx="0.5" cy="0.5" r="0.5">
+                      <stop offset="0" stop-color="var(--k2)" stop-opacity="0.2" />
+                      <stop offset="1" stop-color="var(--k2)" stop-opacity="0" />
+                    </radialGradient>
+                  </defs>
+
+                  <circle cx="360" cy="213" r="158" fill="url(#f4glow)" />
+
+                  <!-- center -->
+                  <rect x="286" y="176" width="148" height="72" rx="18" fill="url(#f4core)" />
+                  <text x="360" y="208" text-anchor="middle" fill="#ffffff" font-size="19" font-weight="800" letter-spacing="0.02em">LLM</text>
+                  <text x="360" y="230" text-anchor="middle" fill="#ffffff" fill-opacity="0.85" font-size="9.6">모델은 부품 하나일 뿐</text>
+
+                  <!-- top: tools -->
+                  <g class="k5">
+                    <path d="M360 112v50" stroke="var(--c)" stroke-width="1.4" stroke-dasharray="4 4" opacity="0.75" />
+                    <path d="M360 172l-4.5-9h9z" fill="var(--c)" />
+                    <rect x="256" y="26" width="208" height="86" rx="14" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.45" stroke-width="1.4" />
+                    <rect x="272" y="40" width="30" height="30" rx="9" fill="var(--c)" fill-opacity="0.12" />
+                    <g transform="translate(272,40) scale(1.25)" fill="none" stroke="var(--c)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M14.5 6.5a3.5 3.5 0 0 0-4.9 4.9l-5.6 5.6a2 2 0 0 0 2.8 2.8l5.6-5.6a3.5 3.5 0 0 0 4.9-4.9l-2.4 2.4-2.4-2.4z" />
+                    </g>
+                    <text class="t-b" x="314" y="56">도구 · MCP</text>
+                    <text x="448" y="54" text-anchor="end" fill="var(--c)" font-size="9.8" font-weight="650">손발</text>
+                    <text class="t-xs" x="272" y="92" fill="var(--text-muted)">파일 · 터미널 · 브라우저 · DB</text>
+                  </g>
+
+                  <!-- left: memory -->
+                  <g class="k2">
+                    <path d="M224 213h48" stroke="var(--c)" stroke-width="1.4" stroke-dasharray="4 4" opacity="0.75" />
+                    <path d="M282 213l-9-4.5v9z" fill="var(--c)" />
+                    <rect x="16" y="170" width="208" height="86" rx="14" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.45" stroke-width="1.4" />
+                    <rect x="32" y="184" width="30" height="30" rx="9" fill="var(--c)" fill-opacity="0.12" />
+                    <g transform="translate(32,184) scale(1.25)" fill="none" stroke="var(--c)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="5" y="3.5" width="14" height="17" rx="2.5" />
+                      <path d="M8.5 8h7M8.5 12h7M8.5 16h4" />
+                    </g>
+                    <text class="t-b" x="74" y="200">메모리 · 컨텍스트</text>
+                    <text x="208" y="198" text-anchor="end" fill="var(--c)" font-size="9.8" font-weight="650">기억</text>
+                    <text class="t-xs" x="32" y="236" fill="var(--text-muted)">규칙 · 지난 결정 · 이 문서</text>
+                  </g>
+
+                  <!-- right: guardrail -->
+                  <g class="k6">
+                    <path d="M492 213h-48" stroke="var(--c)" stroke-width="1.4" stroke-dasharray="4 4" opacity="0.75" />
+                    <path d="M434 213l9-4.5v9z" fill="var(--c)" />
+                    <rect x="496" y="170" width="208" height="86" rx="14" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.45" stroke-width="1.4" />
+                    <rect x="512" y="184" width="30" height="30" rx="9" fill="var(--c)" fill-opacity="0.12" />
+                    <g transform="translate(512,184) scale(1.25)" fill="none" stroke="var(--c)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="4.5" y="10" width="15" height="10" rx="2.5" />
+                      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                    </g>
+                    <text class="t-b" x="554" y="200">권한 가드레일</text>
+                    <text x="688" y="198" text-anchor="end" fill="var(--c)" font-size="9.8" font-weight="650">결재</text>
+                    <text class="t-xs" x="512" y="236" fill="var(--text-muted)">결제 · 발행 · 삭제는 사람 승인</text>
+                  </g>
+
+                  <!-- bottom: verify -->
+                  <g class="k4">
+                    <path d="M360 302v-40" stroke="var(--c)" stroke-width="1.4" stroke-dasharray="4 4" opacity="0.75" />
+                    <path d="M360 252l-4.5 9h9z" fill="var(--c)" />
+                    <rect x="256" y="302" width="208" height="86" rx="14" fill="var(--bg-elevated)" stroke="var(--c)" stroke-opacity="0.45" stroke-width="1.4" />
+                    <rect x="272" y="316" width="30" height="30" rx="9" fill="var(--c)" fill-opacity="0.12" />
+                    <g transform="translate(272,316) scale(1.25)" fill="none" stroke="var(--c)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M5 13.5l4 4L19 7" />
+                    </g>
+                    <text class="t-b" x="314" y="332">자동 검증</text>
+                    <text x="448" y="330" text-anchor="end" fill="var(--c)" font-size="9.8" font-weight="650">확인</text>
+                    <text class="t-xs" x="272" y="368" fill="var(--text-muted)">테스트 · 린트 · 빌드 · 타입</text>
+                  </g>
+
+                  <text class="t-xs" x="360" y="416" text-anchor="middle" fill="var(--text-faint)">
+                    네 칸 중 하나라도 비어 있으면, 그 에이전트는 아직 말 잘 듣는 신입입니다
+                  </text>
+                </svg>
+              </div>
+            </div>
+            <figcaption>
+              <b>그림 4 — 하네스 해부도.</b> 똑똑한 모델 하나로는 반쪽입니다. 손발(도구), 기억(메모리),
+              결재(권한), 확인(검증)이 붙어야 결과를 믿고 맡길 수 있어요. 비어 있는 칸이 곧 사고가 나는
+              자리입니다.
+            </figcaption>
+          </figure>
+
+          <p>
+            네 칸입니다. 뭘 만질 수 있는지(도구), 뭘 기억하는지(메모리), 뭘 하면 안 되는지(권한), 뭘로
+            확인하는지(검증). 이 중 하나라도 비어 있으면 그 에이전트는 아직 위험한 신입이에요. 일은 잘하는데
+            가끔 월급명세서를 지웁니다.
+          </p>
+
+          <p>여기서부터는 취향이 아니라 공학입니다.</p>
+
+          <p>
+            권한을 정할 때 기준은 하나면 됩니다. <strong>되돌릴 수 있나?</strong> 파일 수정은 되돌리면
+            그만이지만, 결제와 발행과 삭제는 되돌릴 수 없어요. 그래서 그 셋만 사람에게 남겨둡니다.
+          </p>
+
+          <h2 id="s7"><span class="num">07</span>될 때까지 돌리는 구조 — 루프</h2>
+
+          <p>
+            하네스까지 갖추면 다음은 자연스러워요. 한 번 시키고 끝내지 않습니다. &ldquo;테스트 통과할 때까지
+            해.&rdquo; 실패하면 로그를 읽고, 고치고, 다시 돌려요. &ldquo;음, 다시 해봐&rdquo;를 열 번 치던
+            일이 사라집니다.
+          </p>
+
+          <p>
+            대신 <strong>멈추는 조건</strong>이 꼭 필요해요. &lsquo;될 때까지&rsquo;는 그냥 무한 루프가 되기
+            쉬우니까요. 통과 기준(테스트·린트·빌드)과 시도 횟수 제한. 이 두 개가 없으면 AI는 밤새 같은 자리를
+            고칩니다. 진짜로요.
+          </p>
+
+          <p>
+            그리고 루프에서 제일 무서운 건 실패가 아니라 <strong>조용한 성공</strong>입니다. 테스트가 안
+            통과하니까 AI가 테스트를 고쳐버려요. 초록불은 켜졌는데 원래 하려던 일은 사라졌죠. 그래서 테스트
+            파일은 손대지 말라고 미리 못 박아둡니다.
+          </p>
+
+          <h2 id="s8"><span class="num">08</span>갈라지고 합쳐지는 일 — 그래프</h2>
+
+          <p>
+            마지막은 일이 한 줄로 흐르지 않을 때입니다. A면 이쪽, B면 저쪽. 이건 병렬로, 저건 서브에이전트에
+            맡기고, 결제 전엔 나한테 물어보게. 이걸 흐름도로 엮으면 그래프가 돼요.
+          </p>
+
+          <figure class="fig">
+            <div class="art">
+              <div class="fig-scroll wide">
+<svg class="fg" viewBox="0 0 720 300" role="img" aria-labelledby="fig5t">
+                  <title id="fig5t">
+                    한 번 시키고 끝나는 흐름, 통과할 때까지 도는 루프, 분기와 병렬과 사람 승인이 있는 그래프 비교
+                  </title>
+                  <defs>
+                    <marker id="f5m" viewBox="0 0 9 9" refX="8" refY="4.5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                      <path d="M0 0 9 4.5 0 9z" fill="var(--border-strong)" />
+                    </marker>
+                    <marker id="f5o" viewBox="0 0 9 9" refX="8" refY="4.5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                      <path d="M0 0 9 4.5 0 9z" fill="var(--k7)" />
+                    </marker>
+                    <marker id="f5c" viewBox="0 0 9 9" refX="8" refY="4.5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+                      <path d="M0 0 9 4.5 0 9z" fill="var(--k8)" />
+                    </marker>
+                  </defs>
+
+                  <text class="t-b" x="8" y="24">① 한 번 시키고 끝</text>
+                  <text class="t-b" x="200" y="24">② 통과할 때까지</text>
+                  <text class="t-b" x="402" y="24">③ 갈라지고 합쳐지고</text>
+
+                  <!-- panel 1 -->
+                  <rect x="8" y="38" width="180" height="248" rx="14" fill="var(--bg-sunken)" stroke="var(--border)" stroke-width="1.2" />
+                  <rect x="44" y="64" width="108" height="32" rx="9" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                  <text class="t" x="98" y="85" text-anchor="middle" fill="var(--text)">시키기</text>
+                  <path d="M98 96V118" stroke="var(--border-strong)" stroke-width="1.3" marker-end="url(#f5m)" />
+                  <rect x="44" y="120" width="108" height="32" rx="9" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                  <text class="t" x="98" y="141" text-anchor="middle" fill="var(--text)">답 받기</text>
+                  <path d="M98 152V176" stroke="var(--border-strong)" stroke-width="1.3" marker-end="url(#f5m)" />
+                  <rect x="62" y="180" width="72" height="30" rx="9" fill="none" stroke="var(--border-strong)" stroke-width="1.2" stroke-dasharray="4 4" />
+                  <text class="t-xs" x="98" y="200" text-anchor="middle" fill="var(--text-muted)">끝</text>
+                  <text class="t-xs" x="98" y="246" text-anchor="middle" fill="var(--text-faint)">실패하면?</text>
+                  <text class="t-xs" x="98" y="262" text-anchor="middle" fill="var(--text-faint)">다시 사람이 시킴</text>
+
+                  <!-- panel 2 -->
+                  <rect x="200" y="38" width="190" height="248" rx="14" fill="var(--bg-sunken)" stroke="var(--border)" stroke-width="1.2" />
+                  <rect x="255" y="64" width="80" height="30" rx="9" fill="var(--bg-elevated)" stroke="var(--k7)" stroke-opacity="0.55" stroke-width="1.2" />
+                  <text class="t" x="295" y="84" text-anchor="middle" fill="var(--text)">실행</text>
+
+                  <rect x="216" y="150" width="68" height="30" rx="9" fill="var(--bg-elevated)" stroke="var(--k7)" stroke-opacity="0.55" stroke-width="1.2" />
+                  <text class="t" x="250" y="170" text-anchor="middle" fill="var(--text)">수정</text>
+                  <rect x="306" y="150" width="68" height="30" rx="9" fill="var(--bg-elevated)" stroke="var(--k7)" stroke-opacity="0.55" stroke-width="1.2" />
+                  <text class="t" x="340" y="170" text-anchor="middle" fill="var(--text)">검증</text>
+
+                  <path d="M255 96 C234 112 232 134 242 149" fill="none" stroke="var(--k7)" stroke-width="1.4" marker-end="url(#f5o)" />
+                  <path d="M284 165H300" stroke="var(--k7)" stroke-width="1.4" marker-end="url(#f5o)" />
+                  <path d="M374 162 C390 136 366 104 338 93" fill="none" stroke="var(--k7)" stroke-width="1.4" marker-end="url(#f5o)" />
+
+                  <rect x="252" y="192" width="86" height="24" rx="12" fill="var(--k7)" fill-opacity="0.12" />
+                  <text class="t-xs" x="295" y="208" text-anchor="middle" fill="var(--k7)">테스트 초록불</text>
+                  <text class="t-xs" x="295" y="246" text-anchor="middle" fill="var(--text-faint)">멈추는 조건이 필요</text>
+                  <text class="t-xs" x="295" y="262" text-anchor="middle" fill="var(--text-faint)">통과 기준 + 시도 횟수</text>
+
+                  <!-- panel 3 -->
+                  <rect x="402" y="38" width="310" height="248" rx="14" fill="var(--bg-sunken)" stroke="var(--border)" stroke-width="1.2" />
+                  <rect x="515" y="52" width="84" height="28" rx="8" fill="var(--bg-elevated)" stroke="var(--border-strong)" stroke-width="1.2" />
+                  <text class="t-xs" x="557" y="70" text-anchor="middle" fill="var(--text)">계획</text>
+                  <path d="M557 80V92" stroke="var(--border-strong)" stroke-width="1.3" marker-end="url(#f5m)" />
+
+                  <path d="M557 96l44 22-44 22-44-22z" fill="var(--k8)" fill-opacity="0.10" stroke="var(--k8)" stroke-opacity="0.55" stroke-width="1.3" />
+                  <text class="t-xs" x="557" y="122" text-anchor="middle" fill="var(--text)">통과?</text>
+
+                  <path d="M513 118H490V148" fill="none" stroke="var(--k8)" stroke-width="1.3" marker-end="url(#f5c)" />
+                  <path d="M601 118H624V148" fill="none" stroke="var(--k8)" stroke-width="1.3" marker-end="url(#f5c)" />
+
+                  <rect x="445" y="152" width="90" height="30" rx="8" fill="var(--bg-elevated)" stroke="var(--k8)" stroke-opacity="0.5" stroke-width="1.2" />
+                  <text class="t-xs" x="490" y="171" text-anchor="middle" fill="var(--text)">A안 실행</text>
+                  <rect x="579" y="152" width="90" height="30" rx="8" fill="var(--bg-elevated)" stroke="var(--k8)" stroke-opacity="0.5" stroke-width="1.2" />
+                  <text class="t-xs" x="624" y="171" text-anchor="middle" fill="var(--text)">B안 실행</text>
+                  <rect x="542" y="157" width="30" height="17" rx="8.5" fill="var(--k8)" fill-opacity="0.1" />
+                  <text x="557" y="169" text-anchor="middle" fill="var(--k8)" font-size="9" font-weight="650">병렬</text>
+
+                  <path d="M490 182V206H522" fill="none" stroke="var(--k8)" stroke-width="1.3" marker-end="url(#f5c)" />
+                  <path d="M624 182V206H598" fill="none" stroke="var(--k8)" stroke-width="1.3" marker-end="url(#f5c)" />
+
+                  <rect x="526" y="194" width="68" height="26" rx="13" fill="var(--bg-elevated)" stroke="var(--k8)" stroke-opacity="0.5" stroke-width="1.2" />
+                  <text class="t-xs" x="560" y="211" text-anchor="middle" fill="var(--text)">합치기</text>
+
+                  <path d="M560 220V232" stroke="var(--border-strong)" stroke-width="1.3" marker-end="url(#f5m)" />
+                  <rect x="492" y="236" width="136" height="30" rx="9" fill="var(--k6)" fill-opacity="0.09" stroke="var(--k6)" stroke-opacity="0.5" stroke-width="1.2" />
+                  <text class="t-xs" x="560" y="255" text-anchor="middle" fill="var(--text)">사람 승인 → 끝</text>
+                </svg>
+              </div>
+            </div>
+            <figcaption>
+              <b>그림 5 — 세 가지 흐름.</b> ①은 한 번에 끝나고 확인은 내 눈이 합니다. ②는 통과 기준이
+              있어야 멈춥니다. ③은 조건 따라 갈라지고, 병렬로 돌고, 사람 승인을 거쳐요. 이쯤 되면 일하는
+              단위가 &lsquo;질문&rsquo;이 아니라 &lsquo;흐름&rsquo;입니다.
+            </figcaption>
+          </figure>
+
+          <p>
+            여기까지 오면 사람이 직접 하는 일은 확 줄어요. 대신 남는 게 있습니다.
+            <strong>어디서 멈추고, 어디서 물어보게 할지 정하는 일.</strong> 요즘 말하는 오케스트레이션이
+            그거예요. 코드를 짜는 사람에서, 일이 흐르는 길을 놓는 사람으로.
+          </p>
+
+          <p>
+            사람이 들어갈 자리는 대개 셋입니다. 돈이 나갈 때, 바깥으로 나갈 때(메일, 발행, 배포), 지울 때.
+            이 셋만 승인 게이트로 두면 나머지는 꽤 마음 놓고 맡길 수 있어요.
+          </p>
+
+          <p>
+            그래서 요즘은 &lsquo;무엇을 만들지&rsquo;보다 &lsquo;어디서 멈추게 할지&rsquo;를 먼저 정합니다.
+          </p>
+
+          <p>
+            돌아보면 단계마다 필요했던 건 더 똑똑한 모델이 아니었어요. <strong>확인할 수 있는 것</strong>이
+            하나씩 늘었습니다. 규칙, 계획, 권한, 테스트, 승인. 이게 없으면 어느 단계에서도 오래 못 가요.
+            반대로 말하면, 지금 막혀 있다면 다음에 필요한 것도 거의 정해져 있다는 뜻입니다.
+          </p>
+
+          <p>
+            여덟 단계를 다 밟을 필요는 없습니다. 필요한 순간에 필요한 칸만 채우면 돼요. 그러니까 지금 AI가
+            답답하다면 모델을 바꾸기 전에, 어느 칸이 비었는지 먼저 보세요. 대개는 더 좋은 모델이 아니라 빠진
+            규칙 하나가 문제입니다.
+          </p>
+
+          <p>
+            지금 몇 번째 단계에 서 있는지 궁금하면, 아래 두 카드를 한번 눌러보세요. 어느 칸이 비었는지도 같이
+            보일 겁니다.
+          </p>
+
+          <section class="widget" id="explorer" aria-labelledby="explorer-title">
+            <div class="widget-head">
+              <p class="widget-kicker">직접 눌러보기</p>
+              <h3 id="explorer-title">여덟 단계, 한 장으로 훑기</h3>
+              <p>단계를 누르면 그 시점의 장면이 바뀝니다. 멘붕 포인트부터 읽어보면 재밌어요.</p>
+            </div>
+            <div class="widget-body">
+              <div class="stage-chips" role="group" aria-label="단계 선택">
+                <button type="button" data-stage="0" data-on="true" aria-pressed="true"><b>01</b>프롬프트</button>
+                <button type="button" data-stage="1" aria-pressed="false"><b>02</b>컨텍스트</button>
+                <button type="button" data-stage="2" aria-pressed="false"><b>03</b>바이브</button>
+                <button type="button" data-stage="3" aria-pressed="false"><b>04</b>스펙·MCP</button>
+                <button type="button" data-stage="4" aria-pressed="false"><b>05</b>에이전트</button>
+                <button type="button" data-stage="5" aria-pressed="false"><b>06</b>하네스</button>
+                <button type="button" data-stage="6" aria-pressed="false"><b>07</b>루프</button>
+                <button type="button" data-stage="7" aria-pressed="false"><b>08</b>그래프</button>
+              </div>
+
+              <div class="stage-card" aria-live="polite">
+                <div class="stage-head">
+                  <span class="stage-num" id="st-num">01</span>
+                  <div>
+                    <span class="stage-name" id="st-name">프롬프트 엔지니어링</span>
+                    <span class="stage-tag" id="st-tag">말 한 줄로 답을 뽑는 시기</span>
+                  </div>
+                </div>
+                <dl class="stage-rows">
+                  <div><dt>내가 하는 일</dt><dd id="st-mine"></dd></div>
+                  <div><dt>AI가 하는 일</dt><dd id="st-ai"></dd></div>
+                  <div><dt>멘붕 포인트</dt><dd id="st-ugh"></dd></div>
+                </dl>
+                <p class="stage-next"><span>다음으로 넘어간 이유</span><span id="st-next"></span></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="widget" id="level" aria-labelledby="level-title">
+            <div class="widget-head">
+              <p class="widget-kicker">가볍게</p>
+              <h3 id="level-title">내 AI 레벨은 몇 단계일까</h3>
+              <p>네 문항, 30초. 정답은 없고 그냥 지금 습관만 고르면 됩니다.</p>
+            </div>
+            <div class="widget-body">
+              <div class="qblock" data-q="1">
+                <p class="qtext"><span class="qn">Q1</span><span>AI에게 코드를 시킬 때, 제일 먼저 하는 건?</span></p>
+                <div class="opts">
+                  <button class="opt" type="button" data-v="0" aria-pressed="false">한 줄 던지고 결과부터 본다</button>
+                  <button class="opt" type="button" data-v="1" aria-pressed="false">관련 파일이나 문서를 붙여 넣는다</button>
+                  <button class="opt" type="button" data-v="2" aria-pressed="false">규칙 파일(CLAUDE.md, .cursorrules)을 관리한다</button>
+                </div>
+              </div>
+
+              <div class="qblock" data-q="2">
+                <p class="qtext"><span class="qn">Q2</span><span>AI가 만든 코드가 커졌을 때</span></p>
+                <div class="opts">
+                  <button class="opt" type="button" data-v="0" aria-pressed="false">그때그때 물어보고 고친다</button>
+                  <button class="opt" type="button" data-v="1" aria-pressed="false">계획을 먼저 받고 시작한다</button>
+                  <button class="opt" type="button" data-v="2" aria-pressed="false">스펙을 문서로 남기고 도구도 연결해 둔다</button>
+                </div>
+              </div>
+
+              <div class="qblock" data-q="3">
+                <p class="qtext"><span class="qn">Q3</span><span>AI가 내 컴퓨터에서 파일을 고치게 하나?</span></p>
+                <div class="opts">
+                  <button class="opt" type="button" data-v="0" aria-pressed="false">아니, 답만 받아서 내가 붙여넣는다</button>
+                  <button class="opt" type="button" data-v="1" aria-pressed="false">응, 파일 수정까지 맡긴다</button>
+                  <button class="opt" type="button" data-v="2" aria-pressed="false">응, 권한과 검증 규칙을 걸어두고 맡긴다</button>
+                </div>
+              </div>
+
+              <div class="qblock" data-q="4">
+                <p class="qtext"><span class="qn">Q4</span><span>일이 실패하면</span></p>
+                <div class="opts">
+                  <button class="opt" type="button" data-v="0" aria-pressed="false">다시 시켜본다, 두세 번</button>
+                  <button class="opt" type="button" data-v="1" aria-pressed="false">에러 메시지를 붙여서 다시 시킨다</button>
+                  <button class="opt" type="button" data-v="2" aria-pressed="false">테스트 통과까지 스스로 반복하게 해둔다</button>
+                </div>
+              </div>
+
+              <div class="levelbox" aria-live="polite">
+                <div class="leveltop">
+                  <span class="levelnum" id="lv-num">–</span>
+                  <div>
+                    <span class="levelname" id="lv-name">네 문항을 고르면 나옵니다</span>
+                    <span class="leveltag" id="lv-tag">아직 결과 없음</span>
+                  </div>
+                </div>
+                <div class="meter" id="lv-meter" aria-hidden="true">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+                <p class="leveldesc" id="lv-desc">네 문항에 답하면 지금 습관과 제일 가까운 단계를 알려드립니다.</p>
+                <p class="levelnext" id="lv-next"></p>
+              </div>
+            </div>
+          </section>
+
+          <div class="aside">
+            <strong>다음 글 예고 —</strong> 여덟 단계 중 어디쯤인지는 알았으니, 다음엔 실제로 하네스 한 벌을
+            짜보는 이야기로 넘어갈까 합니다. 권한을 어떻게 나누고, 멈추는 조건을 어디에 두는지. 그때 또
+            만나요.
+          </div>
+
+          <div class="aside">
+            <strong>이 블로그의 다른 글 —</strong>
+            <a href="/notes/home-mesh-topology/">집 와이파이 뜯어고치기 1부</a> ·
+            <a href="/notes/wifi-attenuation-tcp/">2부</a>. 같은 방식으로, 집 안의 배선과 전파를 끝까지
+            따라가 본 글입니다.
+          </div>
+        </div>
+      </article>
+    </main>
+
+    <footer class="foot">
+      <div class="foot-inner">
+        <span>© 2026 ggebi</span>
+        <nav>
+          <a href="/">글</a>
+          <a href="/rss.xml">RSS</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        'use strict';
+
+        var root = document.documentElement;
+
+        /* ---------------- 테마 ---------------- */
+        var toggle = document.getElementById('theme-toggle');
+        function paintToggle() {
+          var dark = root.dataset.theme === 'dark';
+          toggle.setAttribute('aria-label', dark ? '라이트 모드로 전환' : '다크 모드로 전환');
+        }
+        paintToggle();
+        toggle.addEventListener('click', function () {
+          var next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+          root.dataset.theme = next;
+          try {
+            localStorage.setItem('theme', next);
+          } catch (e) {}
+          paintToggle();
+        });
+
+        /* ---------------- 읽기 진행률 ---------------- */
+        var bar = document.getElementById('progress-bar');
+        function onScroll() {
+          var doc = document.documentElement;
+          var max = doc.scrollHeight - doc.clientHeight;
+          var p = max > 0 ? (doc.scrollTop || 0) / max : 0;
+          bar.style.width = Math.min(100, Math.max(0, p * 100)).toFixed(2) + '%';
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        onScroll();
+
+        /* ---------------- 8단계 카드 ---------------- */
+        var STAGES = [
+          {
+            name: '프롬프트 엔지니어링',
+            tag: '말 한 줄로 답을 뽑는 시기',
+            mine: '질문을 다듬는다. 역할, 예시, 형식, 하지 말 것.',
+            ai: '물어본 것에만 답한다. 옆은 안 본다.',
+            ugh: '대화가 길어지면 앞에서 한 말을 잊는다. 새 창을 열면 처음부터다.',
+            next: '질문으로 안 되는 걸 재료로 채우기 시작한다.'
+          },
+          {
+            name: '컨텍스트 엔지니어링 (RAG · Rules)',
+            tag: '재료를 깔아두는 시기',
+            mine: '규칙 파일과 문서를 정리해 둔다. 어떤 파일을 읽힐지 고른다.',
+            ai: '일을 시작할 때 알아서 읽는다. 질문은 짧아진다.',
+            ugh: '재료를 많이 넣는다고 좋아지지 않는다. 정작 필요한 한 줄이 묻힌다.',
+            next: '재료가 깔렸으니 코드를 통째로 맡겨본다.'
+          },
+          {
+            name: '바이브 코딩',
+            tag: '느낌으로 밀어붙이는 시기',
+            mine: '만들고 싶은 걸 말로 설명하고, 결과를 본다.',
+            ai: '코드를 쏟아낸다. 화면이 30분 만에 뜬다.',
+            ugh: '파일 20개를 넘기면 하나 고치면 둘이 터진다. 같은 버그를 세 번 고친다.',
+            next: '던지기 전에 설계도를 먼저 받는다.'
+          },
+          {
+            name: '스펙 · 도구 연결 (Spec · MCP)',
+            tag: '계획과 손발이 붙는 시기',
+            mine: '계획서를 읽고 방향만 짚는다. 도구 연결은 한 번만 세팅한다.',
+            ai: '어떤 파일을 어떤 순서로 고칠지 먼저 쓰고, 도구를 붙잡는다.',
+            ugh: '계획이 예뻐도 실행에서 어긋난다. 계획과 결과를 대조할 기준이 없다.',
+            next: '실행까지 통째로 맡긴다.'
+          },
+          {
+            name: '에이전트',
+            tag: 'AI가 직접 움직이는 시기',
+            mine: '로그를 보며 지켜본다. 중간에 말리는 일이 잦다.',
+            ai: '파일을 열고, 명령을 치고, 에러를 읽고, 다시 고친다.',
+            ugh: '내가 안 보는 사이에 파일 스무 개를 고쳐놓는다. 되돌리기가 비싸다.',
+            next: '자유를 줄이고 권한과 검증을 건다.'
+          },
+          {
+            name: '하네스',
+            tag: '자유에 규칙을 씌우는 시기',
+            mine: '권한, 메모리, 검증 규칙을 미리 정해둔다.',
+            ai: '정해진 틀 안에서 움직인다. 위험한 일은 물어본다.',
+            ugh: '규칙이 촘촘하면 할 수 있는 게 없어진다. 느슨하면 또 사고가 난다.',
+            next: '한 번에 끝내지 않고 반복시킨다.'
+          },
+          {
+            name: '루프',
+            tag: '될 때까지 돌리는 시기',
+            mine: '통과 기준과 시도 횟수를 정한다. 그 외엔 안 본다.',
+            ai: '실행하고, 확인하고, 고치고, 다시 실행한다.',
+            ugh: '멈추는 조건이 없으면 밤새 같은 자리를 고친다. 진짜로.',
+            next: '일이 갈라지는 걸 흐름도로 엮는다.'
+          },
+          {
+            name: '그래프 · 오케스트레이션',
+            tag: '흐름 자체를 설계하는 시기',
+            mine: '분기, 병렬, 승인 지점을 정한다.',
+            ai: '각 갈래를 맡아 돌아오고, 막히면 보고한다.',
+            ugh: '흐름도가 복잡해지면 어디서 막혔는지 안 보인다. 지도가 필요해진다.',
+            next: '여기서부터는 ‘무엇을 물어볼지’를 설계하는 일이 남는다.'
+          }
+        ];
+
+        var chips = [].slice.call(document.querySelectorAll('.stage-chips button'));
+        var stNum = document.getElementById('st-num');
+        var stName = document.getElementById('st-name');
+        var stTag = document.getElementById('st-tag');
+        var stMine = document.getElementById('st-mine');
+        var stAi = document.getElementById('st-ai');
+        var stUgh = document.getElementById('st-ugh');
+        var stNext = document.getElementById('st-next');
+
+        function showStage(i) {
+          var s = STAGES[i];
+          stNum.textContent = String(i + 1).padStart(2, '0');
+          stName.textContent = s.name;
+          stTag.textContent = s.tag;
+          stMine.textContent = s.mine;
+          stAi.textContent = s.ai;
+          stUgh.textContent = s.ugh;
+          stNext.textContent = s.next;
+          chips.forEach(function (b, k) {
+            b.dataset.on = k === i ? 'true' : 'false';
+            b.setAttribute('aria-pressed', k === i ? 'true' : 'false');
+          });
+        }
+
+        chips.forEach(function (btn, i) {
+          btn.addEventListener('click', function () {
+            showStage(i);
+          });
+        });
+
+        document.querySelector('.stage-chips').addEventListener('keydown', function (e) {
+          var idx = chips.indexOf(document.activeElement);
+          if (idx < 0) return;
+          var to = idx;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = (idx + 1) % chips.length;
+          else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = (idx - 1 + chips.length) % chips.length;
+          else if (e.key === 'Home') to = 0;
+          else if (e.key === 'End') to = chips.length - 1;
+          else return;
+          e.preventDefault();
+          chips[to].focus();
+          showStage(to);
+        });
+
+        showStage(0);
+
+        /* ---------------- 자가진단 ---------------- */
+        var LEVELS = [
+          {
+            name: '프롬프트 엔지니어링',
+            tag: '말을 고치는 사람',
+            desc: '질문을 바꾸면 답이 달라진다는 걸 이미 알고 있습니다. 여기까진 누구나 금방 옵니다.',
+            next: '다음에 볼 것: 질문 대신 재료. 규칙 파일 하나만 만들어도 체감이 큽니다.'
+          },
+          {
+            name: '컨텍스트 엔지니어링',
+            tag: '재료를 까는 사람',
+            desc: '문장보다 재료가 세다는 걸 아는 단계입니다. 대화가 짧아지고 답이 내 것에 맞아지기 시작하죠.',
+            next: '다음에 볼 것: 읽힌 재료를 믿고 코드를 맡겨보기. 여기서 천국이 잠깐 열립니다.'
+          },
+          {
+            name: '바이브 코딩',
+            tag: '느낌으로 만드는 사람',
+            desc: '빈 폴더에서 30분 만에 화면이 뜨는 쾌감을 아는 단계입니다. 대신 파일이 늘면 곡선이 꺾이죠.',
+            next: '다음에 볼 것: 코드를 짜기 전에 계획서를 먼저 받는 습관. 한 줄이면 됩니다.'
+          },
+          {
+            name: '스펙 · 도구 연결',
+            tag: '설계도를 받는 사람',
+            desc: '대충 던지면 대충 망가진다는 걸 몸으로 배웠습니다. 계획을 먼저 받고, 도구도 연결해 두죠.',
+            next: '다음에 볼 것: 실행까지 맡기기. 다만 권한부터 정해두고 맡기세요.'
+          },
+          {
+            name: '에이전트',
+            tag: '손발을 준 사람',
+            desc: 'AI가 파일을 열고 명령을 치는 단계입니다. 잘 풀리면 두 시간짜리 일이 15분에 끝납니다.',
+            next: '다음에 볼 것: 하네스. 권한과 검증이 없으면 이 단계에서 한 번 크게 다칩니다.'
+          },
+          {
+            name: '하네스',
+            tag: '규칙을 세운 사람',
+            desc: '자유를 조금 줄이고 결과를 믿는 쪽을 골랐습니다. 이쯤이면 에이전트가 사고를 쳐도 복구가 됩니다.',
+            next: '다음에 볼 것: 루프. 멈추는 조건만 정하면 반복은 AI가 알아서 합니다.'
+          },
+          {
+            name: '루프',
+            tag: '돌려놓고 안 보는 사람',
+            desc: '한 번 시키고 끝내지 않습니다. 테스트가 초록불이 될 때까지 스스로 돌게 해두죠.',
+            next: '다음에 볼 것: 그래프. 일이 갈라지는 순간이 오면 흐름도가 필요해집니다.'
+          },
+          {
+            name: '그래프 · 오케스트레이션',
+            tag: '흐름을 놓는 사람',
+            desc: '분기, 병렬, 승인 지점을 설계합니다. 사람이 직접 하는 일 대신 흐름이 남습니다.',
+            next: '다음에 볼 것: 없습니다. 이제 남은 건 ‘어디서 사람이 개입할지’를 더 정확히 정하는 일이에요.'
+          }
+        ];
+
+        var qblocks = [].slice.call(document.querySelectorAll('.qblock'));
+        var lvNum = document.getElementById('lv-num');
+        var lvName = document.getElementById('lv-name');
+        var lvTag = document.getElementById('lv-tag');
+        var lvDesc = document.getElementById('lv-desc');
+        var lvNext = document.getElementById('lv-next');
+        var meterBars = [].slice.call(document.querySelectorAll('#lv-meter i'));
+
+        var answers = {};
+
+        function renderLevel() {
+          var keys = Object.keys(answers);
+          if (keys.length < qblocks.length) {
+            var left = qblocks.length - keys.length;
+            lvNum.textContent = '–';
+            lvName.textContent = '네 문항을 고르면 나옵니다';
+            lvTag.textContent = left + '문항 남았어요';
+            lvDesc.textContent = '정답은 없습니다. 요즘 습관에 가까운 쪽을 고르면 됩니다.';
+            lvNext.textContent = '';
+            meterBars.forEach(function (b) {
+              b.classList.remove('on');
+            });
+            return;
+          }
+
+          var score = 0;
+          keys.forEach(function (k) {
+            score += answers[k];
+          });
+          var level = Math.min(8, Math.max(1, 1 + Math.round((score * 7) / 8)));
+          var L = LEVELS[level - 1];
+          lvNum.textContent = 'Lv.' + level;
+          lvName.textContent = L.name;
+          lvTag.textContent = L.tag;
+          lvDesc.textContent = L.desc;
+          lvNext.innerHTML = '<b>' + L.next.split(':')[0] + ':</b>' + L.next.slice(L.next.indexOf(':') + 1);
+          meterBars.forEach(function (b, i) {
+            b.classList.toggle('on', i < level);
+          });
+        }
+
+        qblocks.forEach(function (block) {
+          var q = block.dataset.q;
+          var opts = [].slice.call(block.querySelectorAll('.opt'));
+          opts.forEach(function (opt) {
+            opt.addEventListener('click', function () {
+              opts.forEach(function (o) {
+                o.setAttribute('aria-pressed', o === opt ? 'true' : 'false');
+              });
+              answers[q] = Number(opt.dataset.v);
+              renderLevel();
+            });
+          });
+        });
+
+        renderLevel();
+
+        /* 넓은 그림은 처음에 가운데가 보이게 (좁은 화면에서 빈 모서리 대신 중심) */
+        function centerFigs() {
+          [].forEach.call(document.querySelectorAll('.fig-scroll[data-center]'), function (el) {
+            el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2);
+          });
+        }
+        centerFigs();
+        window.addEventListener('load', centerFigs);
+      })();
+    </script>
+  </body>
+</html>
